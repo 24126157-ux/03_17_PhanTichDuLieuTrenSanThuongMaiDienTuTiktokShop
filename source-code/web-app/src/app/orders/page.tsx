@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Package, ShieldAlert, ArrowRight, Database, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { 
+  Package, ShieldAlert, ArrowRight, Database, Plus, AlertCircle, CheckCircle2, 
+  Search, Filter, RotateCcw, ChevronDown, ChevronUp, Calendar, DollarSign, Tag, Sparkles, X, SlidersHorizontal 
+} from 'lucide-react';
 import Protection from '@/components/Protection';
 import DataTable from '@/components/DataTable';
 
@@ -13,10 +16,23 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [limit, setLimit] = useState(10);
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0);
+
+  // === CÁC STATE BỘ LỌC VÀ TÌM KIẾM (NHIỆM VỤ 2B - LƯU THỊ THƠ) ===
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [creatorFilter, setCreatorFilter] = useState('ALL');
+  const [anomalyFilter, setAnomalyFilter] = useState('ALL');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState('');
@@ -51,14 +67,31 @@ export default function OrdersPage() {
     Is_Anomaly: 0,
   });
 
+  // Hàm gọi API truy vấn MongoDB động kết hợp đa điều kiện (Nhiệm vụ 2B)
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/orders?page=${currentPage}&limit=${limit}&search=${search}`);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+      });
+      if (search.trim()) params.append('search', search.trim());
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (paymentFilter !== 'ALL') params.append('paymentMethod', paymentFilter);
+      if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
+      if (creatorFilter !== 'ALL') params.append('creator', creatorFilter);
+      if (anomalyFilter !== 'ALL') params.append('isAnomaly', anomalyFilter);
+      if (minAmount) params.append('minAmount', minAmount);
+      if (maxAmount) params.append('maxAmount', maxAmount);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setOrders(data.data);
         setTotalPages(data.pagination.totalPages);
+        setTotalOrdersCount(data.pagination.totalOrders);
       }
     } catch (err) {
       console.error(err);
@@ -69,7 +102,36 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentPage, limit, search]);
+  }, [currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate]);
+
+  // Hàm xóa trắng toàn bộ bộ lọc
+  const handleResetFilters = () => {
+    setSearch('');
+    setStatusFilter('ALL');
+    setPaymentFilter('ALL');
+    setCategoryFilter('ALL');
+    setCreatorFilter('ALL');
+    setAnomalyFilter('ALL');
+    setMinAmount('');
+    setMaxAmount('');
+    setStartDate('');
+    setEndDate('');
+    setCurrentPage(1);
+  };
+
+  // Đếm số lượng tiêu chí lọc đang được kích hoạt
+  const activeFiltersCount = [
+    statusFilter !== 'ALL',
+    paymentFilter !== 'ALL',
+    categoryFilter !== 'ALL',
+    creatorFilter !== 'ALL',
+    anomalyFilter !== 'ALL',
+    !!minAmount,
+    !!maxAmount,
+    !!startDate,
+    !!endDate,
+    !!search.trim(),
+  ].filter(Boolean).length;
 
   const handleDelete = async (id: string) => {
     if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng này khỏi hệ thống không?')) return;
@@ -200,17 +262,318 @@ export default function OrdersPage() {
             </div>
           )}
 
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-4 shadow-sm">
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo Mã đơn (Order_ID), Tên khách hàng hoặc Tên sản phẩm..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-400 px-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-            />
+          {/* KHU VỰC BỘ LỌC VÀ TRUY VẤN DỮ LIỆU ĐA TIÊU CHÍ (NHIỆM VỤ 2B - LƯU THỊ THƠ) */}
+          <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+            {/* Thanh tiêu đề của Bộ lọc */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-xl bg-violet-600/20 text-violet-400 border border-violet-500/30">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    Bộ Lọc & Truy Vấn Đơn Hàng Nâng Cao
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+                      Nhiệm vụ 2B
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Hỗ trợ lọc kết hợp đa điều kiện trực tiếp trên cơ sở dữ liệu MongoDB Atlas
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                {activeFiltersCount > 0 && (
+                  <button
+                    onClick={handleResetFilters}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold transition"
+                    title="Xóa toàn bộ các bộ lọc đang chọn"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Đặt lại ({activeFiltersCount})</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition border border-slate-700"
+                >
+                  <Filter className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{showAdvanced ? 'Thu gọn nâng cao' : 'Mở rộng nâng cao'}</span>
+                  {showAdvanced ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Ô Tìm kiếm Từ khóa Chính */}
+            <div className="relative">
+              <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo Mã đơn (Order_ID), Tên khách hàng, Tên sản phẩm, Tên Shop, KOC hoặc Tỉnh thành..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-400 pl-12 pr-10 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-inner"
+              />
+              {search && (
+                <button
+                  onClick={() => {
+                    setSearch('');
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Hàng Các Bộ Lọc Phân Loại Cốt Lõi (Dropdown Filters) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Lọc theo Trạng thái đơn */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Trạng Thái Đơn Hàng
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                >
+                  <option value="ALL">-- Tất cả trạng thái --</option>
+                  <option value="Hoàn thành">Hoàn thành</option>
+                  <option value="Đang vận chuyển">Đang vận chuyển</option>
+                  <option value="Đã hủy">Đã hủy</option>
+                  <option value="Giao không thành công">Giao không thành công</option>
+                  <option value="Hoàn trả / Khiếu nại">Hoàn trả / Khiếu nại</option>
+                </select>
+              </div>
+
+              {/* Lọc theo Phương thức thanh toán */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Phương Thức Thanh Toán
+                </label>
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => {
+                    setPaymentFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                >
+                  <option value="ALL">-- Tất cả phương thức --</option>
+                  <option value="COD (Thanh toán khi nhận hàng)">COD (Thanh toán khi nhận hàng)</option>
+                  <option value="Chuyển khoản QR">Chuyển khoản QR</option>
+                  <option value="Ví điện tử (ZaloPay/Momo)">Ví điện tử (ZaloPay/Momo)</option>
+                  <option value="Thẻ tín dụng/Ghi nợ">Thẻ tín dụng / Ghi nợ</option>
+                </select>
+              </div>
+
+              {/* Lọc theo Danh mục ngành hàng */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Danh Mục Sản Phẩm
+                </label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                >
+                  <option value="ALL">-- Tất cả danh mục --</option>
+                  <option value="Thời trang nữ">Thời trang nữ</option>
+                  <option value="Thời trang nam">Thời trang nam</option>
+                  <option value="Làm đẹp & Chăm sóc cá nhân">Làm đẹp & Chăm sóc cá nhân</option>
+                  <option value="Phụ kiện công nghệ">Phụ kiện công nghệ</option>
+                  <option value="Đồ gia dụng & Đời sống">Đồ gia dụng & Đời sống</option>
+                  <option value="Đồ ăn vặt & Thực phẩm">Đồ ăn vặt & Thực phẩm</option>
+                </select>
+              </div>
+
+              {/* Lọc theo Creator / Kênh bán */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  KOC / Kênh Bán Hàng
+                </label>
+                <select
+                  value={creatorFilter}
+                  onChange={(e) => {
+                    setCreatorFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                >
+                  <option value="ALL">-- Tất cả Creator / Kênh --</option>
+                  <option value="None (Gian hàng trực tiếp)">Bán trực tiếp (Gian hàng)</option>
+                  <option value="None (Tìm kiếm tự nhiên)">Tìm kiếm tự nhiên (Organic)</option>
+                  <option value="Võ Hà Linh">Võ Hà Linh</option>
+                  <option value="Phạm Thoại">Phạm Thoại</option>
+                  <option value="Call Me Duy">Call Me Duy</option>
+                  <option value="Lê Dương Bảo Lâm">Lê Dương Bảo Lâm</option>
+                  <option value="Diệp Lê">Diệp Lê</option>
+                  <option value="Trinh Phạm">Trinh Phạm</option>
+                  <option value="Tun Phạm">Tun Phạm</option>
+                  <option value="Quyền Leo Daily">Quyền Leo Daily</option>
+                  <option value="Duy Muối">Duy Muối</option>
+                  <option value="Đào Bá Lộc">Đào Bá Lộc</option>
+                  <option value="Gian hàng tự Live (Shop Direct)">Gian hàng tự Live</option>
+                  <option value="KOL Không tên (Affiliate)">KOL Không tên (Affiliate)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Bảng Mở Rộng Bộ Lọc Nâng Cao (Khoảng tiền, Khoảng ngày, Bất thường) */}
+            {showAdvanced && (
+              <div className="pt-4 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-2xl border">
+                {/* Lọc Khoảng Tổng Tiền */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5" />
+                    Khoảng Tổng Tiền (VNĐ)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      placeholder="Tối thiểu (Min)"
+                      value={minAmount}
+                      onChange={(e) => {
+                        setMinAmount(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Tối đa (Max)"
+                      value={maxAmount}
+                      onChange={(e) => {
+                        setMaxAmount(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Lọc Khoảng Ngày Đặt Hàng */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Khoảng Ngày Đặt Hàng
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white"
+                    />
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => {
+                        setEndDate(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Lọc Đơn Hàng Bất Thường / Machine Learning */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                    Phân Loại Đơn Hàng (Is_Anomaly)
+                  </label>
+                  <select
+                    value={anomalyFilter}
+                    onChange={(e) => {
+                      setAnomalyFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="ALL">-- Tất cả (Bình thường & Bất thường) --</option>
+                    <option value="0">Đơn hàng bình thường (Hợp lệ)</option>
+                    <option value="1">⚠️ Đơn hàng bất thường (Nghi ngờ gian lận)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Thanh hiển thị kết quả và các chip bộ lọc đang hoạt động */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs">
+              <div className="flex items-center gap-2 text-slate-300">
+                <span className="font-semibold text-white">Kết quả truy vấn:</span>
+                <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-300 font-mono font-bold rounded-lg border border-indigo-500/20">
+                  {loading ? 'Đang tải...' : `${totalOrdersCount.toLocaleString('vi-VN')} đơn hàng`}
+                </span>
+                <span className="text-slate-500 hidden sm:inline">|</span>
+                <span className="text-slate-400 hidden sm:inline">Trang {currentPage} / {totalPages || 1}</span>
+              </div>
+
+              {/* Các chip hiển thị tiêu chí đang lọc */}
+              {activeFiltersCount > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {statusFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Trạng thái: <strong>{statusFilter}</strong>
+                      <button onClick={() => setStatusFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {paymentFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Thanh toán: <strong>{paymentFilter}</strong>
+                      <button onClick={() => setPaymentFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {categoryFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Ngành hàng: <strong>{categoryFilter}</strong>
+                      <button onClick={() => setCategoryFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {creatorFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      KOC: <strong>{creatorFilter}</strong>
+                      <button onClick={() => setCreatorFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {anomalyFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs">
+                      {anomalyFilter === '1' ? '⚠️ Đơn bất thường' : 'Đơn hợp lệ'}
+                      <button onClick={() => setAnomalyFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {minAmount && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Min: {Number(minAmount).toLocaleString('vi-VN')} đ
+                      <button onClick={() => setMinAmount('')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {maxAmount && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Max: {Number(maxAmount).toLocaleString('vi-VN')} đ
+                      <button onClick={() => setMaxAmount('')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {loading ? (
