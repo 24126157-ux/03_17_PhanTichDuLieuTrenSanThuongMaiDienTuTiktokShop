@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 
-// GET: Lấy danh sách đơn hàng có phân trang và tìm kiếm cơ bản
+// GET: Lấy danh sách đơn hàng có phân trang và hỗ trợ truy vấn lọc nâng cao đa tiêu chí (Nhiệm vụ 2B - Thơ)
 export async function GET(request: Request) {
   try {
     await connectToDatabase();
@@ -11,19 +11,84 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const search = searchParams.get('search') || '';
+    
+    // Các tham số lọc nâng cao
+    const status = searchParams.get('status') || '';
+    const paymentMethod = searchParams.get('paymentMethod') || '';
+    const category = searchParams.get('category') || '';
+    const creator = searchParams.get('creator') || '';
+    const isAnomaly = searchParams.get('isAnomaly') || '';
+    const minAmount = searchParams.get('minAmount') || '';
+    const maxAmount = searchParams.get('maxAmount') || '';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
 
+    // Xây dựng câu truy vấn MongoDB động (Dynamic Query Builder)
     const query: any = {};
-    if (search) {
+
+    // 1. Tìm kiếm theo từ khóa (Mã đơn, Tên khách hàng, Tên sản phẩm, Tên Shop, Creator)
+    if (search.trim()) {
+      const keyword = search.trim();
       query.$or = [
-        { Order_ID: { $regex: search, $options: 'i' } },
-        { Customer_Name: { $regex: search, $options: 'i' } },
-        { Product_Name: { $regex: search, $options: 'i' } },
+        { Order_ID: { $regex: keyword, $options: 'i' } },
+        { Customer_Name: { $regex: keyword, $options: 'i' } },
+        { Product_Name: { $regex: keyword, $options: 'i' } },
+        { Shop_Name: { $regex: keyword, $options: 'i' } },
+        { Creator_Name: { $regex: keyword, $options: 'i' } },
+        { Shipping_City: { $regex: keyword, $options: 'i' } },
       ];
+    }
+
+    // 2. Lọc theo trạng thái đơn hàng (Order_Status)
+    if (status && status !== 'ALL') {
+      query.Order_Status = status;
+    }
+
+    // 3. Lọc theo phương thức thanh toán (Payment_Method)
+    if (paymentMethod && paymentMethod !== 'ALL') {
+      query.Payment_Method = paymentMethod;
+    }
+
+    // 4. Lọc theo danh mục ngành hàng (Main_Category)
+    if (category && category !== 'ALL') {
+      query.Main_Category = category;
+    }
+
+    // 5. Lọc theo KOC / Kênh bán hàng (Creator_Name)
+    if (creator && creator !== 'ALL') {
+      query.Creator_Name = creator;
+    }
+
+    // 6. Lọc đơn hàng bất thường (Is_Anomaly)
+    if (isAnomaly !== '' && isAnomaly !== 'ALL') {
+      query.Is_Anomaly = parseInt(isAnomaly, 10);
+    }
+
+    // 7. Lọc theo khoảng tổng tiền (Total_Amount: min - max)
+    if (minAmount || maxAmount) {
+      query.Total_Amount = {};
+      if (minAmount) {
+        query.Total_Amount.$gte = parseFloat(minAmount);
+      }
+      if (maxAmount) {
+        query.Total_Amount.$lte = parseFloat(maxAmount);
+      }
+    }
+
+    // 8. Lọc theo khoảng ngày đặt hàng (Order_Date: startDate - endDate)
+    if (startDate || endDate) {
+      query.Order_Date = {};
+      if (startDate) {
+        query.Order_Date.$gte = startDate;
+      }
+      if (endDate) {
+        query.Order_Date.$lte = endDate + ' 23:59:59';
+      }
     }
 
     const skip = (page - 1) * limit;
     const totalOrders = await Order.countDocuments(query);
-    const orders = await Order.find(query).skip(skip).limit(limit).sort({ createdAt: -1 });
+    const orders = await Order.find(query).skip(skip).limit(limit).sort({ Order_Date: -1, createdAt: -1 });
 
     return NextResponse.json({
       success: true,
