@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { 
   Package, ShieldAlert, ArrowRight, Database, Plus, AlertCircle, CheckCircle2, 
-  Search, Filter, RotateCcw, ChevronDown, ChevronUp, Calendar, DollarSign, Tag, Sparkles, X, SlidersHorizontal 
+  Search, Filter, RotateCcw, ChevronDown, ChevronUp, Calendar, DollarSign, Tag, Sparkles, X, SlidersHorizontal,
+  MapPin, Store
 } from 'lucide-react';
 import Protection from '@/components/Protection';
 import DataTable from '@/components/DataTable';
@@ -27,6 +28,8 @@ export default function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [creatorFilter, setCreatorFilter] = useState('ALL');
+  const [cityFilter, setCityFilter] = useState('ALL');
+  const [shopFilter, setShopFilter] = useState('ALL');
   const [anomalyFilter, setAnomalyFilter] = useState('ALL');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
@@ -80,6 +83,8 @@ export default function OrdersPage() {
       if (paymentFilter !== 'ALL') params.append('paymentMethod', paymentFilter);
       if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
       if (creatorFilter !== 'ALL') params.append('creator', creatorFilter);
+      if (cityFilter !== 'ALL') params.append('city', cityFilter);
+      if (shopFilter !== 'ALL') params.append('shop', shopFilter);
       if (anomalyFilter !== 'ALL') params.append('isAnomaly', anomalyFilter);
       if (minAmount) params.append('minAmount', minAmount);
       if (maxAmount) params.append('maxAmount', maxAmount);
@@ -102,7 +107,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-  }, [currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate]);
+  }, [currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate]);
 
   // Hàm xóa trắng toàn bộ bộ lọc
   const handleResetFilters = () => {
@@ -111,6 +116,8 @@ export default function OrdersPage() {
     setPaymentFilter('ALL');
     setCategoryFilter('ALL');
     setCreatorFilter('ALL');
+    setCityFilter('ALL');
+    setShopFilter('ALL');
     setAnomalyFilter('ALL');
     setMinAmount('');
     setMaxAmount('');
@@ -125,6 +132,8 @@ export default function OrdersPage() {
     paymentFilter !== 'ALL',
     categoryFilter !== 'ALL',
     creatorFilter !== 'ALL',
+    cityFilter !== 'ALL',
+    shopFilter !== 'ALL',
     anomalyFilter !== 'ALL',
     !!minAmount,
     !!maxAmount,
@@ -311,7 +320,7 @@ export default function OrdersPage() {
               <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Tìm kiếm theo Mã đơn (Order_ID), Tên khách hàng, Tên sản phẩm, Tên Shop, KOC hoặc Tỉnh thành..."
+                placeholder="Tìm kiếm theo Mã đơn (Order_ID), Tên khách hàng hoặc Tên sản phẩm..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -432,9 +441,87 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Bảng Mở Rộng Bộ Lọc Nâng Cao (Khoảng tiền, Khoảng ngày, Bất thường) */}
+            {/* Bảng Mở Rộng Bộ Lọc Nâng Cao (Khu vực, Cửa hàng, Khoảng tiền, Khoảng ngày, Bất thường) */}
             {showAdvanced && (
-              <div className="pt-4 border-t border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-2xl border">
+              <div className="pt-4 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
+                {/* Lọc theo Khu vực / Tỉnh thành (Shipping_City) */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                    Khu Vực / Tỉnh Thành (Shipping_City)
+                  </label>
+                  <select
+                    value={cityFilter}
+                    onChange={(e) => {
+                      setCityFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="ALL">-- Tất cả tỉnh thành --</option>
+                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                    <option value="Hà Nội">Hà Nội</option>
+                    <option value="Đà Nẵng">Đà Nẵng</option>
+                    <option value="Bình Dương">Bình Dương</option>
+                    <option value="Đồng Nai">Đồng Nai</option>
+                    <option value="Cần Thơ">Cần Thơ</option>
+                    <option value="Hải Phòng">Hải Phòng</option>
+                    <option value="Bắc Ninh">Bắc Ninh</option>
+                    <option value="Khánh Hòa">Khánh Hòa</option>
+                    <option value="Lâm Đồng">Lâm Đồng</option>
+                    <option value="Quảng Ninh">Quảng Ninh</option>
+                    <option value="Thái Nguyên">Thái Nguyên</option>
+                    <option value="Thừa Thiên Huế">Thừa Thiên Huế</option>
+                    <option value="Vũng Tàu">Vũng Tàu</option>
+                  </select>
+                </div>
+
+                {/* Lọc theo Gian hàng / Shop (Shop_Name) */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <Store className="w-3.5 h-3.5 text-indigo-400" />
+                    Gian Hàng / Cửa Hàng (Shop_Name)
+                  </label>
+                  <select
+                    value={shopFilter}
+                    onChange={(e) => {
+                      setShopFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="ALL">-- Tất cả gian hàng --</option>
+                    <option value="Audio SoundMaster Mall">Audio SoundMaster Mall</option>
+                    <option value="Beauty Queen Official Store">Beauty Queen Official Store</option>
+                    <option value="Bếp Mẹ Nấu & Đồ Ăn Vặt">Bếp Mẹ Nấu & Đồ Ăn Vặt</option>
+                    <option value="Chic & Co Style Korea">Chic & Co Style Korea</option>
+                    <option value="GenZ Streetwear Studio">GenZ Streetwear Studio</option>
+                    <option value="SkinCare Hub Chính Hãng">SkinCare Hub Chính Hãng</option>
+                    <option value="Smart Home Tiện Ích 365">Smart Home Tiện Ích 365</option>
+                    <option value="TechPro Digital Vietnam">TechPro Digital Vietnam</option>
+                  </select>
+                </div>
+
+                {/* Lọc Đơn Hàng Bất Thường / Machine Learning */}
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                    Phân Loại Đơn Hàng (Is_Anomaly)
+                  </label>
+                  <select
+                    value={anomalyFilter}
+                    onChange={(e) => {
+                      setAnomalyFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="ALL">-- Tất cả (Bình thường & Bất thường) --</option>
+                    <option value="0">Đơn hàng bình thường (Hợp lệ)</option>
+                    <option value="1">⚠️ Đơn hàng bất thường (Nghi ngờ gian lận)</option>
+                  </select>
+                </div>
+
                 {/* Lọc Khoảng Tổng Tiền */}
                 <div>
                   <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
@@ -466,10 +553,10 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Lọc Khoảng Ngày Đặt Hàng */}
-                <div>
+                <div className="sm:col-span-2 lg:col-span-2">
                   <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" />
-                    Khoảng Ngày Đặt Hàng
+                    Khoảng Ngày Đặt Hàng (Từ ngày - Đến ngày)
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -491,26 +578,6 @@ export default function OrdersPage() {
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white"
                     />
                   </div>
-                </div>
-
-                {/* Lọc Đơn Hàng Bất Thường / Machine Learning */}
-                <div>
-                  <label className="block text-xs font-semibold text-indigo-300 mb-1.5 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                    Phân Loại Đơn Hàng (Is_Anomaly)
-                  </label>
-                  <select
-                    value={anomalyFilter}
-                    onChange={(e) => {
-                      setAnomalyFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="ALL">-- Tất cả (Bình thường & Bất thường) --</option>
-                    <option value="0">Đơn hàng bình thường (Hợp lệ)</option>
-                    <option value="1">⚠️ Đơn hàng bất thường (Nghi ngờ gian lận)</option>
-                  </select>
                 </div>
               </div>
             )}
@@ -551,6 +618,18 @@ export default function OrdersPage() {
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
                       KOC: <strong>{creatorFilter}</strong>
                       <button onClick={() => setCreatorFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {cityFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Khu vực: <strong>{cityFilter}</strong>
+                      <button onClick={() => setCityFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {shopFilter !== 'ALL' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
+                      Shop: <strong>{shopFilter}</strong>
+                      <button onClick={() => setShopFilter('ALL')} className="hover:text-rose-400 ml-0.5"><X className="w-3 h-3" /></button>
                     </span>
                   )}
                   {anomalyFilter !== 'ALL' && (

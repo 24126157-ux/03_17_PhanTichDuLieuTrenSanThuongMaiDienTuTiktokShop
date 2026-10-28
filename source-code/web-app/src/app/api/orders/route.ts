@@ -17,6 +17,8 @@ export async function GET(request: Request) {
     const paymentMethod = searchParams.get('paymentMethod') || '';
     const category = searchParams.get('category') || '';
     const creator = searchParams.get('creator') || '';
+    const city = searchParams.get('city') || '';
+    const shop = searchParams.get('shop') || '';
     const isAnomaly = searchParams.get('isAnomaly') || '';
     const minAmount = searchParams.get('minAmount') || '';
     const maxAmount = searchParams.get('maxAmount') || '';
@@ -26,16 +28,13 @@ export async function GET(request: Request) {
     // Xây dựng câu truy vấn MongoDB động (Dynamic Query Builder)
     const query: any = {};
 
-    // 1. Tìm kiếm theo từ khóa (Mã đơn, Tên khách hàng, Tên sản phẩm, Tên Shop, Creator)
+    // 1. Tìm kiếm theo từ khóa: Giới hạn theo Mã đơn (Order_ID), Tên khách hàng, Tên sản phẩm (theo feedback Nhóm trưởng)
     if (search.trim()) {
       const keyword = search.trim();
       query.$or = [
         { Order_ID: { $regex: keyword, $options: 'i' } },
         { Customer_Name: { $regex: keyword, $options: 'i' } },
         { Product_Name: { $regex: keyword, $options: 'i' } },
-        { Shop_Name: { $regex: keyword, $options: 'i' } },
-        { Creator_Name: { $regex: keyword, $options: 'i' } },
-        { Shipping_City: { $regex: keyword, $options: 'i' } },
       ];
     }
 
@@ -59,7 +58,17 @@ export async function GET(request: Request) {
       query.Creator_Name = creator;
     }
 
-    // 6. Lọc đơn hàng bất thường (Is_Anomaly)
+    // 6. Lọc theo Khu vực / Tỉnh thành (Shipping_City)
+    if (city && city !== 'ALL') {
+      query.Shipping_City = city;
+    }
+
+    // 7. Lọc theo Tên gian hàng / Cửa hàng (Shop_Name)
+    if (shop && shop !== 'ALL') {
+      query.Shop_Name = shop;
+    }
+
+    // 8. Lọc đơn hàng bất thường (Is_Anomaly)
     if (isAnomaly !== '' && isAnomaly !== 'ALL') {
       query.Is_Anomaly = parseInt(isAnomaly, 10);
     }
