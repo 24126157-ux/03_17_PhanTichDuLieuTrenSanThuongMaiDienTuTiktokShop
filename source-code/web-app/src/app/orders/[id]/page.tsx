@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Package, User, ShoppingBag, DollarSign, Activity, ArrowLeft, Save, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function OrderDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const id = params?.id;
   
@@ -120,13 +121,20 @@ export default function OrderDetailPage() {
               <p className="text-xs text-slate-400 font-mono mt-1">MongoDB ID: {order._id}</p>
             </div>
           </div>
-          <Link
-            href="/orders"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-semibold transition border border-slate-700/60 shadow"
+          <button
+            type="button"
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else {
+                router.push('/orders');
+              }
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-semibold transition border border-slate-700/60 shadow cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Quay lại danh sách</span>
-          </Link>
+          </button>
         </div>
 
         {/* Thông báo Thành công ("Đã lưu thành công") */}

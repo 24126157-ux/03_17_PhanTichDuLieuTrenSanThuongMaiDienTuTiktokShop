@@ -70,6 +70,35 @@ export default function OrdersPage() {
     Is_Anomaly: 0,
   });
 
+  const [isReady, setIsReady] = useState(false);
+
+  // 1. Phục hồi trạng thái bộ lọc từ sessionStorage khi quay lại trang (Khắc phục lỗi reset bộ lọc khi xem chi tiết)
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('tiktokshop_orders_filters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.search !== undefined) setSearch(parsed.search);
+        if (parsed.statusFilter !== undefined) setStatusFilter(parsed.statusFilter);
+        if (parsed.paymentFilter !== undefined) setPaymentFilter(parsed.paymentFilter);
+        if (parsed.categoryFilter !== undefined) setCategoryFilter(parsed.categoryFilter);
+        if (parsed.creatorFilter !== undefined) setCreatorFilter(parsed.creatorFilter);
+        if (parsed.cityFilter !== undefined) setCityFilter(parsed.cityFilter);
+        if (parsed.shopFilter !== undefined) setShopFilter(parsed.shopFilter);
+        if (parsed.anomalyFilter !== undefined) setAnomalyFilter(parsed.anomalyFilter);
+        if (parsed.minAmount !== undefined) setMinAmount(parsed.minAmount);
+        if (parsed.maxAmount !== undefined) setMaxAmount(parsed.maxAmount);
+        if (parsed.startDate !== undefined) setStartDate(parsed.startDate);
+        if (parsed.endDate !== undefined) setEndDate(parsed.endDate);
+        if (parsed.currentPage !== undefined) setCurrentPage(parsed.currentPage);
+        if (parsed.showAdvanced !== undefined) setShowAdvanced(parsed.showAdvanced);
+      }
+    } catch (err) {
+      console.error('Lỗi phục hồi bộ lọc:', err);
+    }
+    setIsReady(true);
+  }, []);
+
   // Hàm gọi API truy vấn MongoDB động kết hợp đa điều kiện (Nhiệm vụ 2B)
   const fetchOrders = async () => {
     setLoading(true);
@@ -105,12 +134,39 @@ export default function OrdersPage() {
     }
   };
 
+  // 2. Tự động gọi API truy vấn MongoDB khi thay đổi bộ lọc & lưu bộ lọc vào sessionStorage
   useEffect(() => {
+    if (!isReady) return;
     fetchOrders();
-  }, [currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate]);
+
+    try {
+      const filterState = {
+        search,
+        statusFilter,
+        paymentFilter,
+        categoryFilter,
+        creatorFilter,
+        cityFilter,
+        shopFilter,
+        anomalyFilter,
+        minAmount,
+        maxAmount,
+        startDate,
+        endDate,
+        currentPage,
+        showAdvanced,
+      };
+      sessionStorage.setItem('tiktokshop_orders_filters', JSON.stringify(filterState));
+    } catch (err) {
+      console.error('Lỗi lưu bộ lọc:', err);
+    }
+  }, [isReady, currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate, showAdvanced]);
 
   // Hàm xóa trắng toàn bộ bộ lọc
   const handleResetFilters = () => {
+    try {
+      sessionStorage.removeItem('tiktokshop_orders_filters');
+    } catch (e) {}
     setSearch('');
     setStatusFilter('ALL');
     setPaymentFilter('ALL');
