@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 
-// GET: Lấy danh sách đơn hàng có phân trang và hỗ trợ truy vấn lọc nâng cao đa tiêu chí (Nhiệm vụ 2B - Thơ)
+// GET: Lấy danh sách đơn hàng có phân trang và hỗ trợ truy vấn lọc nâng cao đa tiêu chí 
 export async function GET(request: Request) {
   try {
     await connectToDatabase();
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     // Xây dựng câu truy vấn MongoDB động (Dynamic Query Builder)
     const query: any = {};
 
-    // 1. Tìm kiếm theo từ khóa: Giới hạn theo Mã đơn (Order_ID), Tên khách hàng, Tên sản phẩm (theo feedback Nhóm trưởng)
+    // 1. Tìm kiếm theo từ khóa: Giới hạn theo Mã đơn (Order_ID), Tên khách hàng, Tên sản phẩm 
     if (search.trim()) {
       const keyword = search.trim();
       query.$or = [
