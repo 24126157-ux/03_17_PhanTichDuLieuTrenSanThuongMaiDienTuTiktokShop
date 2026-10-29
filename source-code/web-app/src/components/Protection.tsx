@@ -1,9 +1,11 @@
 "use client";
 
+
 import React from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { ShieldAlert, Lock, ArrowLeft } from "lucide-react";
+
 
 interface ProtectionProps {
   children: React.ReactNode;
@@ -11,12 +13,14 @@ interface ProtectionProps {
   fallback?: React.ReactNode;
 }
 
+
 export default function Protection({
   children,
   allowedRoles,
   fallback,
 }: ProtectionProps) {
   const { data: session, status } = useSession();
+
 
   // 1. Đang tải phiên đăng nhập
   if (status === "loading") {
@@ -27,6 +31,7 @@ export default function Protection({
       </div>
     );
   }
+
 
   // 2. Chưa đăng nhập
   if (status === "unauthenticated" || !session?.user) {
@@ -52,12 +57,16 @@ export default function Protection({
     );
   }
 
-  // 3. Đã đăng nhập - Kiểm tra vai trò (Role Guard)
+
+  // 3. Đã đăng nhập - Lấy vai trò hiện tại (mặc định là VIEWER nếu không tìm thấy)
   const currentRole = ((session.user as any)?.role || "VIEWER").toUpperCase();
 
+
+  // Kiểm tra nếu allowedRoles được truyền vào và có phần tử
   if (allowedRoles && allowedRoles.length > 0) {
     const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
     const hasPermission = normalizedAllowed.includes(currentRole);
+
 
     if (!hasPermission) {
       if (fallback) return <>{fallback}</>;
@@ -81,23 +90,25 @@ export default function Protection({
             .
           </p>
           <p className="text-xs text-zinc-500 mb-6">
-            Hệ thống phân quyền Role-Based Access Control (RBAC) - Nhóm 17
+            Hệ thống phân quyền Role-Based Access Control (RBAC)
           </p>
           <Link
-            href="/"
+            href="/orders"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-xl transition"
           >
-            <ArrowLeft className="w-4 h-4" /> Quay về Trang chủ
+            <ArrowLeft className="w-4 h-4" /> Quay về Trang Đơn hàng
           </Link>
         </div>
       );
     }
   }
 
+
   return <>{children}</>;
 }
 
-// Hook tiện ích để kiểm tra quyền trong các nút bấm (Thêm/Sửa/Xóa)
+
+// Hook tiện ích để kiểm tra quyền trong các nút bấm (Thêm/Sửa/Xóa/Xuất file)
 export function useHasPermission(allowedRoles: string[]) {
   const { data: session } = useSession();
   if (!session?.user) return false;

@@ -2,16 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
   Package, ShieldAlert, ArrowRight, Database, Plus, AlertCircle, CheckCircle2, 
   Search, Filter, RotateCcw, ChevronDown, ChevronUp, Calendar, DollarSign, Tag, Sparkles, X, SlidersHorizontal,
-  MapPin, Store
+  MapPin, Store, BarChart3
 } from 'lucide-react';
 import Protection from '@/components/Protection';
 import DataTable from '@/components/DataTable';
 
 export default function OrdersPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const role = ((session?.user as any)?.role || 'VIEWER').toUpperCase();
 
@@ -22,7 +24,7 @@ export default function OrdersPage() {
   const [limit, setLimit] = useState(10);
   const [totalOrdersCount, setTotalOrdersCount] = useState(0);
 
-  // === CÁC STATE BỘ LỌC VÀ TÌM KIẾM (NHIỆM VỤ 2B - LƯU THỊ THƠ) ===
+  // === CÁC STATE BỘ LỌC VÀ TÌM KIẾM ===
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [paymentFilter, setPaymentFilter] = useState('ALL');
@@ -99,26 +101,31 @@ export default function OrdersPage() {
     setIsReady(true);
   }, []);
 
-  // Hàm gọi API truy vấn MongoDB động kết hợp đa điều kiện (Nhiệm vụ 2B)
+  // Tạo URL Query String dựa trên bộ lọc hiện tại
+  const buildFilterQueryParams = () => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.append('search', search.trim());
+    if (statusFilter !== 'ALL') params.append('status', statusFilter);
+    if (paymentFilter !== 'ALL') params.append('paymentMethod', paymentFilter);
+    if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
+    if (creatorFilter !== 'ALL') params.append('creator', creatorFilter);
+    if (cityFilter !== 'ALL') params.append('city', cityFilter);
+    if (shopFilter !== 'ALL') params.append('shop', shopFilter);
+    if (anomalyFilter !== 'ALL') params.append('isAnomaly', anomalyFilter);
+    if (minAmount) params.append('minAmount', minAmount);
+    if (maxAmount) params.append('maxAmount', maxAmount);
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return params;
+  };
+
+  // Hàm gọi API truy vấn MongoDB động kết hợp đa điều kiện
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: limit.toString(),
-      });
-      if (search.trim()) params.append('search', search.trim());
-      if (statusFilter !== 'ALL') params.append('status', statusFilter);
-      if (paymentFilter !== 'ALL') params.append('paymentMethod', paymentFilter);
-      if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
-      if (creatorFilter !== 'ALL') params.append('creator', creatorFilter);
-      if (cityFilter !== 'ALL') params.append('city', cityFilter);
-      if (shopFilter !== 'ALL') params.append('shop', shopFilter);
-      if (anomalyFilter !== 'ALL') params.append('isAnomaly', anomalyFilter);
-      if (minAmount) params.append('minAmount', minAmount);
-      if (maxAmount) params.append('maxAmount', maxAmount);
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      const params = buildFilterQueryParams();
+      params.append('page', currentPage.toString());
+      params.append('limit', limit.toString());
 
       const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
@@ -157,6 +164,10 @@ export default function OrdersPage() {
         showAdvanced,
       };
       sessionStorage.setItem('tiktokshop_orders_filters', JSON.stringify(filterState));
+
+      // Lưu chuỗi URL Query String riêng cho Navbar và Nút Xem Báo Cáo
+      const filterQueryParams = buildFilterQueryParams().toString();
+      sessionStorage.setItem('tiktokshop_orders_filter_query', filterQueryParams);
     } catch (err) {
       console.error('Lỗi lưu bộ lọc:', err);
     }
@@ -166,6 +177,7 @@ export default function OrdersPage() {
   const handleResetFilters = () => {
     try {
       sessionStorage.removeItem('tiktokshop_orders_filters');
+      sessionStorage.removeItem('tiktokshop_orders_filter_query');
     } catch (e) {}
     setSearch('');
     setStatusFilter('ALL');
@@ -180,6 +192,16 @@ export default function OrdersPage() {
     setStartDate('');
     setEndDate('');
     setCurrentPage(1);
+  };
+
+  // Chuyển sang trang xem báo cáo kèm theo thông số bộ lọc đang chọn
+  const handleGoToReports = () => {
+    const filterQueryParams = buildFilterQueryParams().toString();
+    if (filterQueryParams) {
+      router.push(`/reports?${filterQueryParams}`);
+    } else {
+      router.push('/reports');
+    }
   };
 
   // Đếm số lượng tiêu chí lọc đang được kích hoạt
@@ -306,18 +328,30 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {role !== 'VIEWER' && (
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              {/* Nút Xem báo cáo dựa theo điều kiện lọc hiện tại */}
               <button
-                onClick={() => {
-                  setFormError('');
-                  setIsModalOpen(true);
-                }}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-indigo-600/20 transition-all transform active:scale-95 shrink-0"
+                onClick={handleGoToReports}
+                className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-emerald-600/20 transition-all transform active:scale-95 shrink-0"
+                title="Xem thống kê & báo cáo theo bộ lọc đang chọn"
               >
-                <Plus className="w-4 h-4" />
-                <span>Thêm đơn hàng mới</span>
+                <BarChart3 className="w-4 h-4" />
+                <span>Xem Báo Cáo Thống Kê</span>
               </button>
-            )}
+
+              {role !== 'VIEWER' && (
+                <button
+                  onClick={() => {
+                    setFormError('');
+                    setIsModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-indigo-600/20 transition-all transform active:scale-95 shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm đơn hàng mới</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {successMsg && (
@@ -327,7 +361,7 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* KHU VỰC BỘ LỌC VÀ TRUY VẤN DỮ LIỆU ĐA TIÊU CHÍ (NHIỆM VỤ 2B - LƯU THỊ THƠ) */}
+          {/* KHU VỰC BỘ LỌC VÀ TRUY VẤN DỮ LIỆU ĐA TIÊU CHÍ */}
           <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
             {/* Thanh tiêu đề của Bộ lọc */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800/80">
@@ -338,9 +372,6 @@ export default function OrdersPage() {
                 <div>
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     Bộ Lọc & Truy Vấn Đơn Hàng Nâng Cao
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
-                      Nhiệm vụ 2B
-                    </span>
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Hỗ trợ lọc kết hợp đa điều kiện trực tiếp trên cơ sở dữ liệu MongoDB Atlas

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
   Crown,
@@ -12,11 +12,12 @@ import {
   LogIn,
   Package,
   Database,
-  Home,
+  BarChart3,
 } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
 
   // Không hiển thị Navbar trên trang login
@@ -25,6 +26,21 @@ export default function Navbar() {
   }
 
   const role = ((session?.user as any)?.role || "VIEWER").toUpperCase();
+
+  // Xử lý chuyển hướng sang trang Report kèm thông số bộ lọc đã lưu từ sessionStorage
+  const handleReportsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    try {
+      const savedFilters = sessionStorage.getItem("tiktokshop_orders_filter_query");
+      if (savedFilters) {
+        router.push(`/reports?${savedFilters}`);
+      } else {
+        router.push("/reports");
+      }
+    } catch (err) {
+      router.push("/reports");
+    }
+  };
 
   return (
     <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur-md sticky top-0 z-50 px-4 md:px-8 py-3 text-white">
@@ -47,6 +63,7 @@ export default function Navbar() {
 
           {/* Nav Links */}
           <nav className="hidden md:flex items-center gap-1 text-xs font-semibold">
+            {/* Đơn hàng */}
             <Link
               href="/orders"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition ${
@@ -59,6 +76,21 @@ export default function Navbar() {
               <span>Đơn hàng (/orders)</span>
             </Link>
 
+            {/* Thống kê - Cho phép mở báo cáo theo bộ lọc đã lưu */}
+            <a
+              href="/reports"
+              onClick={handleReportsClick}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition cursor-pointer ${
+                pathname === "/reports"
+                  ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/30"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800"
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Thống kê (/reports)</span>
+            </a>
+
+            {/* Sao lưu (Chỉ Admin) */}
             <Link
               href="/backup-restore"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition ${
