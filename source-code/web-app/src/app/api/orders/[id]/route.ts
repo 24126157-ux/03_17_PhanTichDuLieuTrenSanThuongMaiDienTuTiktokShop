@@ -37,7 +37,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       if (!orderIdRegex.test(body.Order_ID)) {
         return NextResponse.json({
           success: false,
-          message: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số.'
+          message: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số (Ví dụ: TTS-2024-123456).'
         }, { status: 400 });
       }
 
@@ -52,16 +52,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       if (duplicate) {
         return NextResponse.json({
           success: false,
-          message: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống.`
+          message: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`
         }, { status: 400 });
       }
-    }
-
-    if (Number(body.Unit_Price) < 0 || Number(body.Quantity) < 0 || Number(body.Total_Amount) < 0) {
-      return NextResponse.json({
-        success: false,
-        message: 'Dữ liệu số (Đơn giá, số lượng, tổng tiền) không được nhỏ hơn 0.'
-      }, { status: 400 });
     }
 
     let updatedOrder = null;
@@ -99,7 +92,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
       return NextResponse.json({ success: false, message: 'Không tìm thấy đơn hàng để xóa' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, message: 'Xóa đơn hàng thành công' }, { status: 200 });
+    return NextResponse.json({ success: true, message: 'Xóa đơn hàng thành công', data: deletedOrder }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

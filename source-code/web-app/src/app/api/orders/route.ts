@@ -31,8 +31,6 @@ export async function GET(request: Request) {
         { Order_ID: { $regex: keyword, $options: 'i' } },
         { Customer_Name: { $regex: keyword, $options: 'i' } },
         { Product_Name: { $regex: keyword, $options: 'i' } },
-        { Customer_ID: { $regex: keyword, $options: 'i' } },
-        { Product_ID: { $regex: keyword, $options: 'i' } },
       ];
     }
 
@@ -58,7 +56,7 @@ export async function GET(request: Request) {
 
     const skip = (page - 1) * limit;
     const totalOrders = await Order.countDocuments(query);
-    const orders = await Order.find(query).skip(skip).limit(limit).sort({ Order_Date: -1, createdAt: -1 });
+    const orders = await Order.find(query).skip(skip).limit(limit).sort({ createdAt: -1, Order_Date: -1 });
 
     return NextResponse.json({
       success: true,
@@ -71,7 +69,6 @@ export async function GET(request: Request) {
       },
     }, { status: 200 });
   } catch (error: any) {
-    console.error("❌ LỖI API GET /api/orders:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -85,30 +82,7 @@ export async function POST(request: Request) {
     if (!orderIdRegex.test(body.Order_ID)) {
       return NextResponse.json({
         success: false,
-        error: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số (VD: TTS-2024-123456).'
-      }, { status: 400 });
-    }
-
-    const customerIdRegex = /^CUST-\d{5}$/;
-    if (!customerIdRegex.test(body.Customer_ID)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Mã khách hàng không đúng định dạng! Yêu cầu: CUST- kèm theo đúng 5 chữ số (VD: CUST-01234).'
-      }, { status: 400 });
-    }
-
-    const productIdRegex = /^PROD-[A-Z]\d{2}$/;
-    if (!productIdRegex.test(body.Product_ID)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Mã sản phẩm không đúng định dạng! Yêu cầu: PROD-[Chữ cái viết hoa][2 chữ số] (VD: PROD-T01).'
-      }, { status: 400 });
-    }
-
-    if (Number(body.Unit_Price) < 0 || Number(body.Quantity) <= 0 || Number(body.Total_Amount) < 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Dữ liệu số không hợp lệ (Số lượng phải > 0, đơn giá & tổng tiền không được âm).'
+        error: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số (Ví dụ: TTS-2024-123456).'
       }, { status: 400 });
     }
 
@@ -116,14 +90,13 @@ export async function POST(request: Request) {
     if (existingOrder) {
       return NextResponse.json({
         success: false,
-        error: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống!`
+        error: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!`
       }, { status: 400 });
     }
 
     const newOrder = await Order.create(body);
     return NextResponse.json({ success: true, data: newOrder }, { status: 201 });
   } catch (error: any) {
-    console.error("❌ LỖI API POST /api/orders:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
