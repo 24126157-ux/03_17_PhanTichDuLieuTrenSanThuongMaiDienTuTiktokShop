@@ -32,13 +32,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const { id } = await context.params;
     const body = await request.json();
     
-    // Kiểm tra định dạng và trùng lặp Order_ID khi cập nhật
     if (body.Order_ID) {
       const orderIdRegex = /^TTS-2024-\d{6}$/;
       if (!orderIdRegex.test(body.Order_ID)) {
-        return NextResponse.json({ 
-          success: false, 
-          message: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số (Ví dụ: TTS-2024-123456).' 
+        return NextResponse.json({
+          success: false,
+          message: 'Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm theo đúng 6 chữ số.'
         }, { status: 400 });
       }
 
@@ -51,11 +50,18 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
       const duplicate = await Order.findOne(queryCondition);
       if (duplicate) {
-        return NextResponse.json({ 
-          success: false, 
-          message: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống. Vui lòng nhập mã khác!` 
+        return NextResponse.json({
+          success: false,
+          message: `Mã đơn hàng "${body.Order_ID}" đã tồn tại trong hệ thống.`
         }, { status: 400 });
       }
+    }
+
+    if (Number(body.Unit_Price) < 0 || Number(body.Quantity) < 0 || Number(body.Total_Amount) < 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Dữ liệu số (Đơn giá, số lượng, tổng tiền) không được nhỏ hơn 0.'
+      }, { status: 400 });
     }
 
     let updatedOrder = null;
