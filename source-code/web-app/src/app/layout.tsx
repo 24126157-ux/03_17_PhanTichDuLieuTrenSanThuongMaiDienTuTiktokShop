@@ -1,5 +1,7 @@
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -16,7 +18,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TikTok Shop Portal - Phân Tích Dữ Liệu Lớn & RBAC",
-  description: "Đồ án môn Phân Tích Dữ Liệu Lớn Trong Kinh Doanh (ABDA433708) - Nhóm 17",
+  description:
+    "Đồ án môn Phân Tích Dữ Liệu Lớn Trong Kinh Doanh (ABDA433708) - Nhóm 17",
 };
 
 export default function RootLayout({
@@ -33,6 +36,20 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+
+          {/* Hệ thống thông báo toàn ứng dụng */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: "#1e293b",
+                color: "#f8fafc",
+                border: "1px solid #334155",
+                borderRadius: "12px",
+              },
+            }}
+          />
         </AuthProvider>
       </body>
     </html>
