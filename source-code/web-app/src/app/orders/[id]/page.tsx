@@ -1,9 +1,9 @@
 'use client';
-
+// web-app/src/app/orders/[id]/page.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import { Package, User, ShoppingBag, DollarSign, Activity, ArrowLeft, Save, AlertCircle, Lock } from 'lucide-react';
+import { Package, User, ShoppingBag, DollarSign, Activity, ArrowLeft, Save, AlertCircle, Lock, Store } from 'lucide-react';
 
 const VIETNAM_CITIES = [
   'TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Bình Dương', 'Đồng Nai', 'Cần Thơ', 'Hải Phòng',
@@ -63,22 +63,29 @@ export default function OrderDetailPage() {
     e.preventDefault();
     setErrorMsg('');
 
+    if (!order.Customer_ID?.trim()) return setErrorMsg('Mã khách hàng là bắt buộc nhập!');
+    const customerIdRegex = /^CUST-\d{5}$/;
+    if (!customerIdRegex.test(order.Customer_ID.trim())) {
+      return setErrorMsg('Mã khách hàng không đúng định dạng! Yêu cầu: CUST- kèm đúng 5 chữ số (Ví dụ: CUST-01053).');
+    }
+
     if (!order.Customer_Name?.trim()) return setErrorMsg('Tên khách hàng không được để trống.');
+
+    if (!order.Product_ID?.trim()) return setErrorMsg('Mã sản phẩm là bắt buộc nhập!');
+    const productIdRegex = /^PROD-[A-Za-z0-9_-]+$/;
+    if (!productIdRegex.test(order.Product_ID.trim())) {
+      return setErrorMsg('Mã sản phẩm không đúng định dạng! Yêu cầu dạng PROD-xxx (Ví dụ: PROD-T02).');
+    }
+
     if (!order.Product_Name?.trim()) return setErrorMsg('Tên sản phẩm không được để trống.');
 
     if (!order.Shipping_City?.trim()) {
       return setErrorMsg('Thành phố giao hàng là bắt buộc, vui lòng chọn tỉnh/thành phố!');
     }
 
-    // Bắt buộc Đơn giá > 0
     const priceNum = Number(order.Unit_Price);
     if (!order.Unit_Price || isNaN(priceNum) || priceNum <= 0) {
       return setErrorMsg('Đơn giá sản phẩm là bắt buộc và phải lớn hơn 0.');
-    }
-
-    const customerIdRegex = /^CUST-\d{5}$/;
-    if (order.Customer_ID?.trim() && !customerIdRegex.test(order.Customer_ID.trim())) {
-      return setErrorMsg('Mã khách hàng không đúng định dạng! Yêu cầu: CUST- kèm đúng 5 chữ số (Ví dụ: CUST-12345).');
     }
 
     const ageNum = Number(order.Customer_Age);
@@ -87,8 +94,6 @@ export default function OrderDetailPage() {
     }
 
     if (Number(order.Quantity) <= 0) return setErrorMsg('Số lượng phải lớn hơn 0.');
-    if (Number(order.Discount_Amount) < 0) return setErrorMsg('Giảm giá không được nhỏ hơn 0.');
-    if (Number(order.Shipping_Fee) < 0) return setErrorMsg('Phí ship không được nhỏ hơn 0.');
 
     setSaving(true);
 
@@ -97,6 +102,15 @@ export default function OrderDetailPage() {
       const payload = {
         ...order,
         Order_Date: formattedDate,
+        Customer_Age: Number(order.Customer_Age),
+        Unit_Price: priceNum,
+        Quantity: Number(order.Quantity) || 1,
+        Discount_Amount: Number(order.Discount_Amount) || 0,
+        Shipping_Fee: Number(order.Shipping_Fee) || 0,
+        Total_Amount: Number(order.Total_Amount) || 0,
+        Product_Rating: Number(order.Product_Rating) || 5,
+        Review_Count: Number(order.Review_Count) || 0,
+        Video_Views: Number(order.Video_Views) || 0,
       };
 
       const res = await fetch(`/api/orders/${id}`, {
@@ -254,18 +268,23 @@ export default function OrderDetailPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Mã KH (CUST-xxxxx)</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Mã KH (Customer_ID) <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   value={order.Customer_ID || ''}
                   onChange={(e) => setOrder({ ...order, Customer_ID: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono"
-                  placeholder="Ví dụ: CUST-12345"
+                  placeholder="Ví dụ: CUST-01053"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tên Khách Hàng <span className="text-rose-400">*</span></label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Tên Khách Hàng <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -276,7 +295,7 @@ export default function OrderDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tuổi Khách Hàng (&gt; 0)</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tuổi Khách Hàng</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="number"
@@ -337,7 +356,23 @@ export default function OrderDetailPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tên Sản Phẩm <span className="text-rose-400">*</span></label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Mã Sản Phẩm (Product_ID) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={order.Product_ID || ''}
+                  onChange={(e) => setOrder({ ...order, Product_ID: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono"
+                  placeholder="Ví dụ: PROD-T02"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Tên Sản Phẩm <span className="text-rose-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
@@ -348,25 +383,33 @@ export default function OrderDetailPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Danh Mục Sản Phẩm</label>
-                <select
-                  value={order.Main_Category || 'Thời trang nữ'}
-                  onChange={(e) => setOrder({ ...order, Main_Category: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white"
-                >
-                  <option value="Thời trang nữ">Thời trang nữ</option>
-                  <option value="Thời trang nam">Thời trang nam</option>
-                  <option value="Làm đẹp & Chăm sóc cá nhân">Làm đẹp & Chăm sóc cá nhân</option>
-                  <option value="Phụ kiện công nghệ">Phụ kiện công nghệ</option>
-                  <option value="Đồ gia dụng & Đời sống">Đồ gia dụng & Đời sống</option>
-                  <option value="Đồ ăn vặt & Thực phẩm">Đồ ăn vặt & Thực phẩm</option>
-                </select>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Danh Mục Chính & Phụ</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={order.Main_Category || 'Thời trang nữ'}
+                    onChange={(e) => setOrder({ ...order, Main_Category: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-xs text-white"
+                  >
+                    <option value="Thời trang nữ">Thời trang nữ</option>
+                    <option value="Thời trang nam">Thời trang nam</option>
+                    <option value="Làm đẹp & Chăm sóc cá nhân">Làm đẹp & Chăm sóc cá nhân</option>
+                    <option value="Phụ kiện công nghệ">Phụ kiện công nghệ</option>
+                    <option value="Đồ gia dụng & Đời sống">Đồ gia dụng & Đời sống</option>
+                    <option value="Đồ ăn vặt & Thực phẩm">Đồ ăn vặt & Thực phẩm</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={order.Sub_Category || ''}
+                    onChange={(e) => setOrder({ ...order, Sub_Category: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white"
+                    placeholder="Danh mục phụ"
+                  />
+                </div>
               </div>
 
-              {/* BẮT BUỘC ĐƠN GIÁ > 0 Ở TRANG CHI TIẾT */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Đơn Giá (&gt; 0) <span className="text-rose-400">*</span> & Số Lượng
+                  Đơn Giá<span className="text-rose-400">*</span> & Số Lượng
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -422,37 +465,79 @@ export default function OrderDetailPage() {
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-6 space-y-4">
             <h2 className="text-sm font-bold text-indigo-400 flex items-center gap-2 uppercase tracking-wider">
-              <DollarSign className="w-4 h-4" /> 4. Marketing & Cửa Hàng
+              <Store className="w-4 h-4" /> 4. Cửa Hàng, Marketing & Đánh Giá
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Nguồn Traffic</label>
-                <input
-                  type="text"
-                  value={order.Traffic_Source || ''}
-                  onChange={(e) => setOrder({ ...order, Traffic_Source: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white"
-                />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Mã Shop & Tên Shop</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={order.Shop_ID || ''}
+                    onChange={(e) => setOrder({ ...order, Shop_ID: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-xs text-white font-mono"
+                    placeholder="SHOP-001"
+                  />
+                  <input
+                    type="text"
+                    value={order.Shop_Name || ''}
+                    onChange={(e) => setOrder({ ...order, Shop_Name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-xs text-white"
+                    placeholder="Tên Shop"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tên Creator / KOL</label>
-                <input
-                  type="text"
-                  value={order.Creator_Name || ''}
-                  onChange={(e) => setOrder({ ...order, Creator_Name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white"
-                />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Nguồn Traffic & Creator</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={order.Traffic_Source || ''}
+                    onChange={(e) => setOrder({ ...order, Traffic_Source: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-xs text-white"
+                    placeholder="Traffic Source"
+                  />
+                  <input
+                    type="text"
+                    value={order.Creator_Name || ''}
+                    onChange={(e) => setOrder({ ...order, Creator_Name: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-xs text-white"
+                    placeholder="Tên KOL"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Tên Shop</label>
-                <input
-                  type="text"
-                  value={order.Shop_Name || ''}
-                  onChange={(e) => setOrder({ ...order, Shop_Name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white"
-                />
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Rating / Review / Video Views</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="5"
+                    value={order.Product_Rating ?? 5}
+                    onChange={(e) => setOrder({ ...order, Product_Rating: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-xs text-white"
+                    placeholder="Rating"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={order.Review_Count ?? 0}
+                    onChange={(e) => setOrder({ ...order, Review_Count: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-xs text-white"
+                    placeholder="Reviews"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={order.Video_Views ?? 0}
+                    onChange={(e) => setOrder({ ...order, Video_Views: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-xs text-white"
+                    placeholder="Views"
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import mongoose from 'mongoose';
-
+// web-app/src/app/api/orders/[id]/route.ts
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await connectToDatabase();

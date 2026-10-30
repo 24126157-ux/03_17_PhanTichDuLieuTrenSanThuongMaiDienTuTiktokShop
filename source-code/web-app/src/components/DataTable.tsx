@@ -1,5 +1,5 @@
 'use client';
-
+// web-app/src/components/DataTable.tsx
 import React from 'react';
 import Link from 'next/link';
 import toast, { Toaster } from 'react-hot-toast';

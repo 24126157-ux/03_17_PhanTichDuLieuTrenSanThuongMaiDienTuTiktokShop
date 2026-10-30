@@ -1,19 +1,17 @@
 'use client';
-
+// web-app/src/app/orders/page.tsx
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast, { Toaster } from 'react-hot-toast';
 import {
-  Package, ShieldAlert, ArrowRight, Database, Plus, AlertCircle, CheckCircle2,
-  Search, Filter, RotateCcw, ChevronDown, ChevronUp, Calendar, DollarSign, Tag, Sparkles, X, SlidersHorizontal,
-  MapPin, Store, BarChart3
+  Package, Plus, AlertCircle, Search, Filter, RotateCcw, ChevronDown, ChevronUp,
+  Calendar, DollarSign, X, SlidersHorizontal, MapPin, Store, BarChart3, ShieldAlert
 } from 'lucide-react';
 import Protection from '@/components/Protection';
 import DataTable from '@/components/DataTable';
 
-// Danh sách 63 Tỉnh / Thành phố Việt Nam dùng cho bộ lọc và Modal Thêm mới
 const VIETNAM_CITIES = [
   'TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Bình Dương', 'Đồng Nai', 'Cần Thơ', 'Hải Phòng',
   'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu', 'Bắc Ninh', 'Bến Tre',
@@ -31,7 +29,6 @@ export default function OrdersPage() {
   const { data: session } = useSession();
   const role = ((session?.user as any)?.role || 'VIEWER').toUpperCase();
 
-  // === STATE QUẢN LÝ DỮ LIỆU BẢNG & PHÂN TRANG ===
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +36,7 @@ export default function OrdersPage() {
   const [limit, setLimit] = useState(10);
   const [totalOrdersCount, setTotalOrdersCount] = useState(0);
 
-  // === STATE QUẢN LÝ BỘ LỌC TÌM KIẾM ===
+  // Filter States
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [paymentFilter, setPaymentFilter] = useState('ALL');
@@ -54,7 +51,6 @@ export default function OrdersPage() {
   const [endDate, setEndDate] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // === STATE QUẢN LÝ MODAL THÊM MỚI ===
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -64,24 +60,23 @@ export default function OrdersPage() {
     return now.toISOString().slice(0, 16);
   };
 
-  // Trạng thái Form Thêm Mới (Để trống mặc định)
-  const [newOrder, setNewOrder] = useState({
+  const initialOrderState = {
     Order_ID: '',
     Order_Date: getCurrentDateTime(),
     Customer_ID: '',
     Customer_Name: '',
     Customer_Age: '',
     Customer_Gender: 'Nam',
-    Shipping_City: '', // Bắt buộc chọn
+    Shipping_City: '',
     Device_Type: 'Mobile (Android)',
     Product_ID: '',
     Product_Name: '',
     Main_Category: 'Thời trang nữ',
     Sub_Category: '',
-    Unit_Price: '', // Bắt buộc nhập (> 0)
+    Unit_Price: '',
     Quantity: '1',
-    Discount_Amount: '',
-    Shipping_Fee: '',
+    Discount_Amount: '0',
+    Shipping_Fee: '0',
     Total_Amount: '',
     Payment_Method: 'COD (Thanh toán khi nhận hàng)',
     Order_Status: 'Đang vận chuyển',
@@ -93,11 +88,11 @@ export default function OrdersPage() {
     Creator_Name: '',
     Video_Views: '0',
     Is_Anomaly: 0,
-  });
+  };
 
+  const [newOrder, setNewOrder] = useState(initialOrderState);
   const [isReady, setIsReady] = useState(false);
 
-  // Tự động tính Tổng Tiền (Total_Amount) khi thay đổi Đơn giá, Số lượng, Giảm giá, Phí ship
   useEffect(() => {
     if (!newOrder.Unit_Price && !newOrder.Discount_Amount && !newOrder.Shipping_Fee) return;
     const price = Number(newOrder.Unit_Price) || 0;
@@ -108,7 +103,6 @@ export default function OrdersPage() {
     setNewOrder((prev) => ({ ...prev, Total_Amount: total >= 0 ? total.toString() : '0' }));
   }, [newOrder.Unit_Price, newOrder.Quantity, newOrder.Discount_Amount, newOrder.Shipping_Fee]);
 
-  // Phục hồi bộ lọc từ sessionStorage khi tải trang
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem('tiktokshop_orders_filters');
@@ -135,7 +129,6 @@ export default function OrdersPage() {
     setIsReady(true);
   }, []);
 
-  // 📝 1. HÀM DỰNG ĐỐI TƯỢNG CÁC THAM SỐ QUERY PARAMS
   const buildFilterQueryParams = () => {
     const params = new URLSearchParams();
     if (search.trim()) params.append('search', search.trim());
@@ -153,11 +146,6 @@ export default function OrdersPage() {
     return params;
   };
 
-  // 🔗 2. TẠO CHUỖI URL QUERY STRING DÀNH RIÊNG CHO NAVBAR VÀ CHUYỂN HƯỚNG BÁO CÁO
-  const filterQueryParams = buildFilterQueryParams();
-  const filterQueryString = filterQueryParams.toString();
-
-  // Gọi API lấy danh sách đơn hàng
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -179,7 +167,7 @@ export default function OrdersPage() {
     }
   };
 
-  // Theo dõi sự thay đổi của các bộ lọc để tải lại dữ liệu & lưu Query String vào SessionStorage
+  
   useEffect(() => {
     if (!isReady) return;
     fetchOrders();
@@ -190,17 +178,17 @@ export default function OrdersPage() {
         cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount,
         startDate, endDate, currentPage, showAdvanced,
       };
-      // Lưu trạng thái bộ lọc dạng JSON
       sessionStorage.setItem('tiktokshop_orders_filters', JSON.stringify(filterState));
-      
-      // 💾 3. LƯU RIÊNG CHUỖI QUERY STRING VÀO SESSIONSTORAGE ĐỂ NAVBAR KHÁC DÙNG
-      sessionStorage.setItem('tiktokshop_orders_filter_query', filterQueryString);
+
+      // Lưu chuỗi URL Query String riêng cho Navbar và Nút Xem Báo Cáo
+      const filterQueryParams = buildFilterQueryParams().toString();
+      sessionStorage.setItem('tiktokshop_orders_filter_query', filterQueryParams);
     } catch (err) {
       console.error('Lỗi lưu bộ lọc:', err);
     }
-  }, [isReady, currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter, cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate, showAdvanced, filterQueryString]);
+  }, [isReady, currentPage, limit, search, statusFilter, paymentFilter, categoryFilter, creatorFilter,
+      cityFilter, shopFilter, anomalyFilter, minAmount, maxAmount, startDate, endDate, showAdvanced]);
 
-  // Đặt lại (Reset) toàn bộ bộ lọc
   const handleResetFilters = () => {
     try {
       sessionStorage.removeItem('tiktokshop_orders_filters');
@@ -221,8 +209,8 @@ export default function OrdersPage() {
     setCurrentPage(1);
   };
 
-  // 🚀 4. CHUYỂN HƯỚNG SANG TRANG BÁO CÁO KÈM THEO CHUỖI FILTER QUERY STRING
   const handleGoToReports = () => {
+    const filterQueryString = buildFilterQueryParams().toString();
     if (filterQueryString) {
       router.push(`/reports?${filterQueryString}`);
     } else {
@@ -230,13 +218,18 @@ export default function OrdersPage() {
     }
   };
 
-  const activeFiltersCount = [
-    statusFilter !== 'ALL', paymentFilter !== 'ALL', categoryFilter !== 'ALL',
-    creatorFilter !== 'ALL', cityFilter !== 'ALL', shopFilter !== 'ALL',
-    anomalyFilter !== 'ALL', !!minAmount, !!maxAmount, !!startDate, !!endDate, !!search.trim(),
-  ].filter(Boolean).length;
+  const activeFilters = [];
+  if (search.trim()) activeFilters.push({ label: `Từ khóa: "${search.trim()}"`, clear: () => setSearch('') });
+  if (statusFilter !== 'ALL') activeFilters.push({ label: `Trạng thái: ${statusFilter}`, clear: () => setStatusFilter('ALL') });
+  if (paymentFilter !== 'ALL') activeFilters.push({ label: `Thanh toán: ${paymentFilter}`, clear: () => setPaymentFilter('ALL') });
+  if (categoryFilter !== 'ALL') activeFilters.push({ label: `Danh mục: ${categoryFilter}`, clear: () => setCategoryFilter('ALL') });
+  if (creatorFilter !== 'ALL') activeFilters.push({ label: `KOL: ${creatorFilter}`, clear: () => setCreatorFilter('ALL') });
+  if (cityFilter !== 'ALL') activeFilters.push({ label: `Tỉnh/Thành: ${cityFilter}`, clear: () => setCityFilter('ALL') });
+  if (shopFilter !== 'ALL') activeFilters.push({ label: `Shop: ${shopFilter}`, clear: () => setShopFilter('ALL') });
+  if (anomalyFilter !== 'ALL') activeFilters.push({ label: `Phân loại: ${anomalyFilter === '1' ? 'Bất thường' : 'Bình thường'}`, clear: () => setAnomalyFilter('ALL') });
+  if (minAmount || maxAmount) activeFilters.push({ label: `Giá: ${minAmount || '0'}đ - ${maxAmount || '∞'}đ`, clear: () => { setMinAmount(''); setMaxAmount(''); } });
+  if (startDate || endDate) activeFilters.push({ label: `Ngày: ${startDate || 'Đầu'} đến ${endDate || 'Hiện tại'}`, clear: () => { setStartDate(''); setEndDate(''); } });
 
-  // Xóa đơn hàng
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
@@ -251,48 +244,44 @@ export default function OrdersPage() {
     }
   };
 
-  // Xử lý tạo mới đơn hàng với đầy đủ kiểm tra ràng buộc (Validate)
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
-    // Check trống thông tin cơ bản
     if (!newOrder.Order_ID.trim()) return setFormError('Chưa lưu được: Mã đơn hàng không được để trống.');
-    if (!newOrder.Customer_Name.trim()) return setFormError('Chưa lưu được: Tên khách hàng không được để trống.');
-    if (!newOrder.Product_Name.trim()) return setFormError('Chưa lưu được: Tên sản phẩm không được để trống.');
-
-    // Ràng buộc 1: Bắt buộc chọn Thành phố giao hàng
-    if (!newOrder.Shipping_City.trim()) {
-      return setFormError('Chưa lưu được: Thành phố giao hàng là bắt buộc, vui lòng chọn tỉnh/thành phố!');
-    }
-
-    // Ràng buộc 2: Bắt buộc nhập Đơn giá > 0
-    const priceNum = Number(newOrder.Unit_Price);
-    if (!newOrder.Unit_Price || isNaN(priceNum) || priceNum <= 0) {
-      return setFormError('Chưa lưu được: Đơn giá sản phẩm là bắt buộc và phải lớn hơn 0.');
-    }
-
-    // Ràng buộc 3: Định dạng Mã Đơn TTS-2024-xxxxxx
     const orderIdRegex = /^TTS-2024-\d{6}$/;
     if (!orderIdRegex.test(newOrder.Order_ID.trim())) {
       return setFormError('Chưa lưu được: Mã đơn hàng không đúng định dạng! Yêu cầu: TTS-2024- kèm 6 chữ số (Ví dụ: TTS-2024-123456).');
     }
 
-    // Ràng buộc 4: Định dạng Mã Khách Hàng CUST-xxxxx
+    if (!newOrder.Customer_ID.trim()) return setFormError('Chưa lưu được: Mã khách hàng là bắt buộc nhập!');
     const customerIdRegex = /^CUST-\d{5}$/;
-    if (newOrder.Customer_ID.trim() && !customerIdRegex.test(newOrder.Customer_ID.trim())) {
-      return setFormError('Chưa lưu được: Mã khách hàng không đúng định dạng! Yêu cầu: CUST- kèm đúng 5 chữ số (Ví dụ: CUST-12345).');
+    if (!customerIdRegex.test(newOrder.Customer_ID.trim())) {
+      return setFormError('Chưa lưu được: Mã khách hàng không đúng định dạng! Yêu cầu: CUST- kèm đúng 5 chữ số (Ví dụ: CUST-01053).');
     }
 
-    // Ràng buộc 5: Tuổi lớn hơn 0
+    if (!newOrder.Customer_Name.trim()) return setFormError('Chưa lưu được: Tên khách hàng không được để trống.');
+
+    if (!newOrder.Product_ID.trim()) return setFormError('Chưa lưu được: Mã sản phẩm là bắt buộc nhập!');
+    const productIdRegex = /^PROD-[A-Za-z0-9_-]+$/;
+    if (!productIdRegex.test(newOrder.Product_ID.trim())) {
+      return setFormError('Chưa lưu được: Mã sản phẩm không đúng định dạng! Yêu cầu dạng PROD-xxx (Ví dụ: PROD-T02).');
+    }
+
+    if (!newOrder.Product_Name.trim()) return setFormError('Chưa lưu được: Tên sản phẩm không được để trống.');
+    if (!newOrder.Shipping_City.trim()) return setFormError('Chưa lưu được: Thành phố giao hàng là bắt buộc, vui lòng chọn tỉnh/thành phố!');
+
+    const priceNum = Number(newOrder.Unit_Price);
+    if (!newOrder.Unit_Price || isNaN(priceNum) || priceNum <= 0) {
+      return setFormError('Chưa lưu được: Đơn giá sản phẩm là bắt buộc và phải lớn hơn 0.');
+    }
+
     const ageNum = Number(newOrder.Customer_Age);
     if (!newOrder.Customer_Age || isNaN(ageNum) || ageNum <= 0) {
       return setFormError('Chưa lưu được: Tuổi khách hàng phải là số nguyên dương lớn hơn 0.');
     }
 
     if (Number(newOrder.Quantity) <= 0) return setFormError('Chưa lưu được: Số lượng phải lớn hơn 0.');
-    if (Number(newOrder.Discount_Amount) < 0) return setFormError('Chưa lưu được: Giảm giá không được nhỏ hơn 0.');
-    if (Number(newOrder.Shipping_Fee) < 0) return setFormError('Chưa lưu được: Phí ship không được nhỏ hơn 0.');
 
     try {
       const formattedDate = newOrder.Order_Date.replace('T', ' ') + ':00';
@@ -322,37 +311,7 @@ export default function OrdersPage() {
         setCurrentPage(1);
         fetchOrders();
         toast.success(`Đã thêm mới đơn hàng ${newOrder.Order_ID} thành công!`, { duration: 4000 });
-        
-        // Reset form về trạng thái ban đầu
-        setNewOrder({
-          Order_ID: '',
-          Order_Date: getCurrentDateTime(),
-          Customer_ID: '',
-          Customer_Name: '',
-          Customer_Age: '',
-          Customer_Gender: 'Nam',
-          Shipping_City: '',
-          Device_Type: 'Mobile (Android)',
-          Product_ID: '',
-          Product_Name: '',
-          Main_Category: 'Thời trang nữ',
-          Sub_Category: '',
-          Unit_Price: '',
-          Quantity: '1',
-          Discount_Amount: '',
-          Shipping_Fee: '',
-          Total_Amount: '',
-          Payment_Method: 'COD (Thanh toán khi nhận hàng)',
-          Order_Status: 'Đang vận chuyển',
-          Product_Rating: '5.0',
-          Review_Count: '0',
-          Shop_ID: '',
-          Shop_Name: '',
-          Traffic_Source: '',
-          Creator_Name: '',
-          Video_Views: '0',
-          Is_Anomaly: 0,
-        });
+        setNewOrder(initialOrderState);
       } else {
         setFormError(`Chưa lưu được: ${data.error || 'Dữ liệu không hợp lệ hoặc bị trùng lặp.'}`);
       }
@@ -368,7 +327,7 @@ export default function OrdersPage() {
         <Toaster position="top-right" />
         <div className="max-w-7xl mx-auto space-y-8">
           
-          {/* HEADER TRANG QUẢN LÝ */}
+          {/* HEADER */}
           <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-4">
               <span className="p-3.5 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
@@ -381,16 +340,13 @@ export default function OrdersPage() {
                 <p className="text-xs text-indigo-400 font-mono mt-1">
                   Đang đăng nhập với vai trò: <strong className="uppercase">{role}</strong>
                 </p>
-                <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-                  Trung tâm giám sát giao dịch, tìm kiếm nâng cao và thao tác CRUD đơn hàng tích hợp phân quyền RBAC.
-                </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
               <button
                 onClick={handleGoToReports}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-emerald-600/20 transition-all transform active:scale-95 shrink-0"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-sm font-bold shadow-xl transition-all transform active:scale-95"
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>Xem Báo Cáo Thống Kê</span>
@@ -402,7 +358,7 @@ export default function OrdersPage() {
                     setFormError('');
                     setIsModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-sm font-bold shadow-xl shadow-indigo-600/20 transition-all transform active:scale-95 shrink-0"
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl text-sm font-bold shadow-xl transition-all transform active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Thêm đơn hàng mới</span>
@@ -411,7 +367,7 @@ export default function OrdersPage() {
             </div>
           </div>
 
-          {/* KHU VỰC BỘ LỌC NÂNG CAO */}
+          {/* FILTER AREA */}
           <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-800/80">
               <div className="flex items-center gap-3">
@@ -422,20 +378,17 @@ export default function OrdersPage() {
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     Bộ Lọc & Truy Vấn Đơn Hàng Nâng Cao
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Hỗ trợ lọc kết hợp đa điều kiện trực tiếp trên cơ sở dữ liệu MongoDB Atlas
-                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-auto">
-                {activeFiltersCount > 0 && (
+                {activeFilters.length > 0 && (
                   <button
                     onClick={handleResetFilters}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-semibold transition"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Đặt lại ({activeFiltersCount})</span>
+                    <span>Đặt lại ({activeFilters.length})</span>
                   </button>
                 )}
 
@@ -460,14 +413,11 @@ export default function OrdersPage() {
                   setSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-400 pl-12 pr-10 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-inner"
+                className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-400 pl-12 pr-10 py-3.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-inner"
               />
               {search && (
                 <button
-                  onClick={() => {
-                    setSearch('');
-                    setCurrentPage(1);
-                  }}
+                  onClick={() => { setSearch(''); setCurrentPage(1); }}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
                 >
                   <X className="w-4 h-4" />
@@ -477,15 +427,10 @@ export default function OrdersPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Trạng Thái Đơn Hàng
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Trạng Thái Đơn Hàng</label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 >
                   <option value="ALL">-- Tất cả trạng thái --</option>
@@ -498,15 +443,10 @@ export default function OrdersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Phương Thức Thanh Toán
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Phương Thức Thanh Toán</label>
                 <select
                   value={paymentFilter}
-                  onChange={(e) => {
-                    setPaymentFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => { setPaymentFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 >
                   <option value="ALL">-- Tất cả phương thức --</option>
@@ -518,15 +458,10 @@ export default function OrdersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Danh Mục Sản Phẩm
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Danh Mục Sản Phẩm</label>
                 <select
                   value={categoryFilter}
-                  onChange={(e) => {
-                    setCategoryFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 >
                   <option value="ALL">-- Tất cả danh mục --</option>
@@ -540,15 +475,10 @@ export default function OrdersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  KOC / Kênh Bán Hàng
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">KOC / Kênh Bán Hàng</label>
                 <select
                   value={creatorFilter}
-                  onChange={(e) => {
-                    setCreatorFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(e) => { setCreatorFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 >
                   <option value="ALL">-- Tất cả Creator / Kênh --</option>
@@ -562,10 +492,6 @@ export default function OrdersPage() {
                   <option value="Trinh Phạm">Trinh Phạm</option>
                   <option value="Tun Phạm">Tun Phạm</option>
                   <option value="Quyền Leo Daily">Quyền Leo Daily</option>
-                  <option value="Duy Muối">Duy Muối</option>
-                  <option value="Đào Bá Lộc">Đào Bá Lộc</option>
-                  <option value="Gian hàng tự Live (Shop Direct)">Gian hàng tự Live</option>
-                  <option value="KOL Không tên (Affiliate)">KOL Không tên (Affiliate)</option>
                 </select>
               </div>
             </div>
@@ -579,10 +505,7 @@ export default function OrdersPage() {
                   </label>
                   <select
                     value={cityFilter}
-                    onChange={(e) => {
-                      setCityFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => { setCityFilter(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="ALL">-- Tất cả tỉnh thành --</option>
@@ -599,10 +522,7 @@ export default function OrdersPage() {
                   </label>
                   <select
                     value={shopFilter}
-                    onChange={(e) => {
-                      setShopFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => { setShopFilter(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="ALL">-- Tất cả gian hàng --</option>
@@ -624,10 +544,7 @@ export default function OrdersPage() {
                   </label>
                   <select
                     value={anomalyFilter}
-                    onChange={(e) => {
-                      setAnomalyFilter(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => { setAnomalyFilter(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="ALL">-- Tất cả (Bình thường & Bất thường) --</option>
@@ -646,20 +563,14 @@ export default function OrdersPage() {
                       type="number"
                       placeholder="Tối thiểu (Min)"
                       value={minAmount}
-                      onChange={(e) => {
-                        setMinAmount(e.target.value);
-                        setCurrentPage(1);
-                      }}
+                      onChange={(e) => { setMinAmount(e.target.value); setCurrentPage(1); }}
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                     />
                     <input
                       type="number"
                       placeholder="Tối đa (Max)"
                       value={maxAmount}
-                      onChange={(e) => {
-                        setMaxAmount(e.target.value);
-                        setCurrentPage(1);
-                      }}
+                      onChange={(e) => { setMaxAmount(e.target.value); setCurrentPage(1); }}
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
                     />
                   </div>
@@ -674,19 +585,13 @@ export default function OrdersPage() {
                     <input
                       type="date"
                       value={startDate}
-                      onChange={(e) => {
-                        setStartDate(e.target.value);
-                        setCurrentPage(1);
-                      }}
+                      onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white"
                     />
                     <input
                       type="date"
                       value={endDate}
-                      onChange={(e) => {
-                        setEndDate(e.target.value);
-                        setCurrentPage(1);
-                      }}
+                      onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
                       className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-white"
                     />
                   </div>
@@ -694,19 +599,42 @@ export default function OrdersPage() {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-300">
-                <span className="font-semibold text-white">Kết quả truy vấn:</span>
-                <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-300 font-mono font-bold rounded-lg border border-indigo-500/20">
-                  {loading ? 'Đang tải...' : `${totalOrdersCount.toLocaleString('vi-VN')} đơn hàng`}
-                </span>
-                <span className="text-slate-500 hidden sm:inline">|</span>
-                <span className="text-slate-400 hidden sm:inline">Trang {currentPage} / {totalPages || 1}</span>
+            {/* HIỂN THỊ CÁC ĐIỀU KIỆN LỌC ĐANG ĐƯỢC ÁP DỤNG TRONG KẾT QUẢ TRUY VẤN */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <span className="font-semibold text-white">Kết quả truy vấn:</span>
+                  <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-300 font-mono font-bold rounded-lg border border-indigo-500/20">
+                    {loading ? 'Đang tải...' : `${totalOrdersCount.toLocaleString('vi-VN')} đơn hàng`}
+                  </span>
+                  <span className="text-slate-500 hidden sm:inline">|</span>
+                  <span className="text-slate-400 hidden sm:inline">Trang {currentPage} / {totalPages || 1}</span>
+                </div>
               </div>
+
+              {activeFilters.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs text-slate-400 font-medium">Đang lọc theo:</span>
+                  {activeFilters.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-500/40 text-[11px] font-medium"
+                    >
+                      {item.label}
+                      <button
+                        onClick={() => { item.clear(); setCurrentPage(1); }}
+                        className="hover:text-white p-0.5 rounded-full hover:bg-indigo-800/50"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* BẢNG DỮ LIỆU ĐƠN HÀNG */}
+          {/* TABLE */}
           {loading ? (
             <div className="text-center py-16 text-slate-400 bg-slate-900/50 rounded-2xl border border-slate-800">
               Đang tải dữ liệu đơn hàng từ cơ sở dữ liệu...
@@ -727,26 +655,6 @@ export default function OrdersPage() {
             />
           )}
 
-          {/* AREA KIỂM THỬ PHÂN QUYỀN RBAC */}
-          <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400" />
-              Khu vực kiểm thử Role Guard (RBAC):
-            </h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Nếu tài khoản <strong>không phải ADMIN</strong> (ví dụ: đang đăng nhập là <strong>{role}</strong>) mà bấm vào trang <code>/backup-restore</code> thì hệ thống sẽ tự động chặn quyền truy cập.
-            </p>
-
-            <Link
-              href="/backup-restore"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-semibold transition shadow"
-            >
-              <Database className="w-4 h-4" />
-              <span>Thử truy cập trang /backup-restore (Để kiểm tra chặn quyền)</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Link>
-          </div>
-
           {/* MODAL THÊM MỚI ĐƠN HÀNG */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -756,10 +664,7 @@ export default function OrdersPage() {
                     <Plus className="w-5 h-5 text-indigo-400" />
                     Thêm Đơn Hàng Mới
                   </h2>
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-slate-400 hover:text-white text-sm font-medium"
-                  >
+                  <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white text-sm font-medium">
                     ✕ Đóng
                   </button>
                 </div>
@@ -767,7 +672,7 @@ export default function OrdersPage() {
                 {formError && (
                   <div className="p-4 bg-red-950/90 text-red-200 rounded-2xl border-2 border-red-500 text-sm font-bold flex items-center gap-3 shadow-lg">
                     <AlertCircle className="w-6 h-6 shrink-0 text-red-400 animate-pulse" />
-                    <div className="space-y-0.5">
+                    <div>
                       <p className="text-red-400 uppercase tracking-wide text-xs font-extrabold">Trạng thái thao tác: Chưa lưu được</p>
                       <p className="text-base text-white">{formError}</p>
                     </div>
@@ -857,7 +762,7 @@ export default function OrdersPage() {
                           value={newOrder.Customer_ID}
                           onChange={(e) => setNewOrder({ ...newOrder, Customer_ID: e.target.value })}
                           className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono"
-                          placeholder="Ví dụ: CUST-12345"
+                          placeholder="Ví dụ: CUST-01053"
                         />
                       </div>
                       <div>
@@ -885,7 +790,7 @@ export default function OrdersPage() {
                             value={newOrder.Customer_Age}
                             onChange={(e) => setNewOrder({ ...newOrder, Customer_Age: e.target.value })}
                             className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                            placeholder="Nhập tuổi"
+                            placeholder="Tuổi"
                           />
                           <select
                             value={newOrder.Customer_Gender}
@@ -937,6 +842,19 @@ export default function OrdersPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-1">
+                          Mã Sản Phẩm (Product_ID) <span className="text-rose-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newOrder.Product_ID}
+                          onChange={(e) => setNewOrder({ ...newOrder, Product_ID: e.target.value })}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono"
+                          placeholder="Ví dụ: PROD-T02"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">
                           Tên Sản Phẩm <span className="text-rose-400">*</span>
                         </label>
                         <input
@@ -949,19 +867,28 @@ export default function OrdersPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">Danh Mục Sản Phẩm</label>
-                        <select
-                          value={newOrder.Main_Category}
-                          onChange={(e) => setNewOrder({ ...newOrder, Main_Category: e.target.value })}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                        >
-                          <option value="Thời trang nữ">Thời trang nữ</option>
-                          <option value="Thời trang nam">Thời trang nam</option>
-                          <option value="Làm đẹp & Chăm sóc cá nhân">Làm đẹp & Chăm sóc cá nhân</option>
-                          <option value="Phụ kiện công nghệ">Phụ kiện công nghệ</option>
-                          <option value="Đồ gia dụng & Đời sống">Đồ gia dụng & Đời sống</option>
-                          <option value="Đồ ăn vặt & Thực phẩm">Đồ ăn vặt & Thực phẩm</option>
-                        </select>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Danh Mục Chính & Phụ</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={newOrder.Main_Category}
+                            onChange={(e) => setNewOrder({ ...newOrder, Main_Category: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                          >
+                            <option value="Thời trang nữ">Thời trang nữ</option>
+                            <option value="Thời trang nam">Thời trang nam</option>
+                            <option value="Làm đẹp & Chăm sóc cá nhân">Làm đẹp & Chăm sóc cá nhân</option>
+                            <option value="Phụ kiện công nghệ">Phụ kiện công nghệ</option>
+                            <option value="Đồ gia dụng & Đời sống">Đồ gia dụng & Đời sống</option>
+                            <option value="Đồ ăn vặt & Thực phẩm">Đồ ăn vặt & Thực phẩm</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={newOrder.Sub_Category}
+                            onChange={(e) => setNewOrder({ ...newOrder, Sub_Category: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"
+                            placeholder="Danh mục phụ"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -976,7 +903,7 @@ export default function OrdersPage() {
                             value={newOrder.Unit_Price}
                             onChange={(e) => setNewOrder({ ...newOrder, Unit_Price: e.target.value })}
                             className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                            placeholder="Nhập đơn giá"
+                            placeholder="Đơn giá"
                           />
                           <input
                             type="number"
@@ -1011,7 +938,7 @@ export default function OrdersPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-indigo-300 mb-1 font-bold">Tổng Tiền (Total_Amount)</label>
+                        <label className="block text-xs font-bold text-indigo-300 mb-1">Tổng Tiền (Total_Amount)</label>
                         <input
                           type="number"
                           min="0"
@@ -1025,37 +952,76 @@ export default function OrdersPage() {
                   </div>
 
                   <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-5 space-y-4">
-                    <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">4. Marketing, KOL & Cửa hàng</h3>
+                    <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">4. Cửa Hàng, Marketing & Đánh Giá</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">Nguồn Traffic</label>
-                        <input
-                          type="text"
-                          value={newOrder.Traffic_Source}
-                          onChange={(e) => setNewOrder({ ...newOrder, Traffic_Source: e.target.value })}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                          placeholder="Ví dụ: Livestream TikTok"
-                        />
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Mã Shop & Tên Shop</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={newOrder.Shop_ID}
+                            onChange={(e) => setNewOrder({ ...newOrder, Shop_ID: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white font-mono"
+                            placeholder="SHOP-001"
+                          />
+                          <input
+                            type="text"
+                            value={newOrder.Shop_Name}
+                            onChange={(e) => setNewOrder({ ...newOrder, Shop_Name: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Tên Shop"
+                          />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">Tên Creator / KOL</label>
-                        <input
-                          type="text"
-                          value={newOrder.Creator_Name}
-                          onChange={(e) => setNewOrder({ ...newOrder, Creator_Name: e.target.value })}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                          placeholder="Ví dụ: Võ Hà Linh"
-                        />
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Nguồn Traffic & Creator</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={newOrder.Traffic_Source}
+                            onChange={(e) => setNewOrder({ ...newOrder, Traffic_Source: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Traffic Source"
+                          />
+                          <input
+                            type="text"
+                            value={newOrder.Creator_Name}
+                            onChange={(e) => setNewOrder({ ...newOrder, Creator_Name: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Tên KOL"
+                          />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1">Tên Shop</label>
-                        <input
-                          type="text"
-                          value={newOrder.Shop_Name}
-                          onChange={(e) => setNewOrder({ ...newOrder, Shop_Name: e.target.value })}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
-                          placeholder="Ví dụ: Beauty Queen Official Store"
-                        />
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Rating / Review / Video Views</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            max="5"
+                            value={newOrder.Product_Rating}
+                            onChange={(e) => setNewOrder({ ...newOrder, Product_Rating: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Rating"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={newOrder.Review_Count}
+                            onChange={(e) => setNewOrder({ ...newOrder, Review_Count: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Reviews"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={newOrder.Video_Views}
+                            onChange={(e) => setNewOrder({ ...newOrder, Video_Views: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-white"
+                            placeholder="Views"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
