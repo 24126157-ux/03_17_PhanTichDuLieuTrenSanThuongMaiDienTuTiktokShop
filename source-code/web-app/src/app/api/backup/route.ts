@@ -38,7 +38,9 @@ export async function GET() {
 
     await connectToDatabase();
 
-    const records = await Transaction.find({}).lean();
+    const records = await Transaction.find({})
+  .sort({ createdAt: -1, _id: -1 })
+  .lean();
 
     const date = new Date().toISOString().slice(0, 10);
     const filename = `tiktok_orders_backup_${date}.json`;
