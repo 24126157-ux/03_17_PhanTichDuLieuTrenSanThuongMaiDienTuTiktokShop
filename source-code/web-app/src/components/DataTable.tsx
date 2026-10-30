@@ -1,12 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { Eye, Trash2, AlertTriangle, AlertCircle } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+import { ChevronLeft, ChevronRight, Eye, Trash2, AlertTriangle } from 'lucide-react';
+
+interface Order {
+  _id: string;
+  Order_ID: string;
+  Order_Date: string;
+  Customer_Name: string;
+  Product_Name: string;
+  Quantity: number;
+  Total_Amount: number;
+  Payment_Method: string;
+  Order_Status: string;
+  Is_Anomaly: number;
+}
 
 interface DataTableProps {
-  orders: any[];
-  userRole: string;
+  orders: Order[];
+  userRole?: string;
   currentPage: number;
   totalPages: number;
   limit: number;
@@ -25,102 +39,143 @@ export default function DataTable({
   onLimitChange,
   onDelete,
 }: DataTableProps) {
-  const canEditOrDelete = userRole !== 'VIEWER';
 
-  // State quản lý Modal xác nhận xóa ở giữa màn hình
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<{ id: string; orderIdText: string } | null>(null);
-
-  const confirmDeleteClick = (id: string, orderIdText: string) => {
-    setOrderToDelete({ id, orderIdText });
-    setDeleteModalOpen(true);
-  };
-
-  const handleExecuteDelete = () => {
-    if (orderToDelete) {
-      onDelete(orderToDelete.id);
-      setDeleteModalOpen(false);
-      setOrderToDelete(null);
-    }
+  const confirmAndDelete = (order: Order) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3 p-1">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-slate-800">Cảnh báo xóa đơn hàng</p>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng <strong className="text-indigo-600 font-mono">{order.Order_ID}</strong>?
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              await onDelete(order._id);
+              toast.success(`Đã xóa đơn hàng ${order.Order_ID} thành công!`, {
+                duration: 4000,
+                style: { background: '#0f172a', color: '#f8fafc', border: '1px solid #334155' },
+                icon: '🗑️',
+              });
+            }}
+            className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg shadow-md transition"
+          >
+            Xác nhận xóa
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 8000,
+      style: { background: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '12px' },
+    });
   };
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl overflow-hidden space-y-4">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-800 bg-slate-950/60 text-xs font-bold text-indigo-400 uppercase tracking-wider">
-              <th className="py-4 px-5">Mã Đơn / Ngày</th>
-              <th className="py-4 px-5">Khách Hàng / Thành Phố</th>
-              <th className="py-4 px-5">Sản Phẩm & Danh Mục</th>
-              <th className="py-4 px-5">Tài Chính (VNĐ)</th>
-              <th className="py-4 px-5">Trạng Thái & Rủi Ro</th>
-              <th className="py-4 px-5 text-center">Thao Tác</th>
+    <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl overflow-hidden">
+      <Toaster position="top-right" />
+      
+      <div className="overflow-x-auto w-full">
+        <table className="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead className="bg-slate-950/90 text-slate-300 border-b border-slate-800">
+            <tr>
+              <th className="px-3 py-3 font-bold uppercase tracking-wider text-left">Mã Đơn</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-left">Ngày Đặt</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-left">Khách Hàng</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-left max-w-[200px]">Sản Phẩm</th>
+              <th className="px-2 py-3 font-bold uppercase tracking-wider text-center">SL</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-right">Tổng Tiền</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-center">Thanh Toán</th>
+              <th className="px-2.5 py-3 font-bold uppercase tracking-wider text-center">Trạng Thái</th>
+              <th className="px-3 py-3 font-bold uppercase tracking-wider text-center">Thao Tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 text-sm text-slate-300">
+          <tbody className="divide-y divide-slate-800/60">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-slate-500">
-                  Không tìm thấy đơn hàng nào phù hợp với điều kiện truy vấn.
+                <td colSpan={9} className="px-4 py-12 text-center text-slate-400 font-medium">
+                  Không tìm thấy dữ liệu đơn hàng phù hợp với bộ lọc.
                 </td>
               </tr>
             ) : (
               orders.map((order) => {
                 const isAnomaly = order.Is_Anomaly === 1;
                 return (
-                  <tr key={order._id} className={`hover:bg-slate-800/40 transition ${isAnomaly ? 'bg-rose-950/20' : ''}`}>
-                    <td className="py-4 px-5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-white block">{order.Order_ID || 'N/A'}</span>
-                        {isAnomaly && (
-                          <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 shrink-0 animate-pulse" title="Đơn hàng có dấu hiệu nghi ngờ gian lận / bất thường">
-                            <AlertTriangle className="w-3 h-3" /> Nghi ngờ gian lận
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-400 font-mono">{order.Order_Date}</span>
+                  <tr
+                    key={order._id}
+                    className={`transition-colors ${
+                      isAnomaly ? 'bg-amber-950/20 hover:bg-amber-900/30' : 'hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <td className="px-3 py-3 font-bold font-mono text-indigo-400 whitespace-nowrap">
+                      <Link href={`/orders/${order._id}`} className="hover:underline">
+                        {order.Order_ID}
+                      </Link>
+                      {isAnomaly && (
+                        <span className="block mt-0.5 text-[10px] px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-sans font-bold w-fit">
+                          ⚠️ Bất thường
+                        </span>
+                      )}
                     </td>
-                    <td className="py-4 px-5">
-                      <span className="font-semibold text-slate-200 block">{order.Customer_Name}</span>
-                      <span className="text-xs text-slate-400">{order.Shipping_City} • <span className="font-mono">{order.Customer_ID}</span></span>
+                    <td className="px-2.5 py-3 text-slate-300 whitespace-nowrap text-xs">
+                      {order.Order_Date ? order.Order_Date.slice(0, 10) : 'N/A'}
                     </td>
-                    <td className="py-4 px-5">
-                      <span className="text-slate-200 block max-w-xs truncate" title={order.Product_Name}>
-                        {order.Product_Name}
-                      </span>
-                      <span className="text-xs text-indigo-400">{order.Main_Category} &gt; {order.Sub_Category}</span>
+                    <td className="px-2.5 py-3 text-slate-100 font-medium whitespace-nowrap max-w-[130px] truncate">
+                      {order.Customer_Name}
                     </td>
-                    <td className="py-4 px-5 font-bold font-mono text-emerald-400">
-                      {Number(order.Total_Amount || 0).toLocaleString('vi-VN')} đ
-                      <div className="text-[11px] text-slate-400 font-normal">SL: {order.Quantity} | Ship: {Number(order.Shipping_Fee || 0).toLocaleString('vi-VN')}đ</div>
+                    <td className="px-2.5 py-3 text-slate-300 truncate max-w-[180px]" title={order.Product_Name}>
+                      {order.Product_Name}
                     </td>
-                    <td className="py-4 px-5 space-y-1.5">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
-                        order.Order_Status === 'Hoàn thành' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        order.Order_Status === 'Đang vận chuyển' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' :
-                        'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      }`}>
+                    <td className="px-2 py-3 text-center text-white font-mono font-bold">{order.Quantity}</td>
+                    <td className="px-2.5 py-3 text-right font-bold text-emerald-400 font-mono whitespace-nowrap">
+                      {(order.Total_Amount || 0).toLocaleString('vi-VN')} đ
+                    </td>
+                    <td className="px-2.5 py-3 text-center text-slate-300 text-xs whitespace-nowrap max-w-[140px] truncate" title={order.Payment_Method}>
+                      {order.Payment_Method}
+                    </td>
+                    <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold border inline-block ${
+                          order.Order_Status === 'Hoàn thành'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : order.Order_Status === 'Đã hủy'
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                            : order.Order_Status === 'Đang vận chuyển'
+                            ? 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        }`}
+                      >
                         {order.Order_Status}
                       </span>
-                      <div className="text-[11px] text-slate-400">Kênh: {order.Traffic_Source || 'N/A'} ({order.Creator_Name || 'N/A'})</div>
                     </td>
-                    <td className="py-4 px-5 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
                         <Link
                           href={`/orders/${order._id}`}
-                          className="p-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 rounded-xl transition"
-                          title="Xem chi tiết đầy đủ & Chỉnh sửa"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition"
+                          title="Xem & Chỉnh sửa chi tiết"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem</span>
                         </Link>
-                        {canEditOrDelete && (
+                        {userRole !== 'VIEWER' && (
                           <button
-                            onClick={() => confirmDeleteClick(order._id, order.Order_ID)}
-                            className="p-2 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 rounded-xl transition cursor-pointer"
+                            onClick={() => confirmAndDelete(order)}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 rounded-lg text-xs font-semibold transition"
                             title="Xóa đơn hàng"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Xóa</span>
                           </button>
                         )}
                       </div>
@@ -133,76 +188,41 @@ export default function DataTable({
         </table>
       </div>
 
-      {/* MODAL XÁC NHẬN XÓA */}
-      {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl text-white space-y-6 text-center">
-            <div className="w-16 h-16 bg-rose-500/20 border border-rose-500/40 rounded-full flex items-center justify-center mx-auto text-rose-400">
-              <AlertCircle className="w-8 h-8 animate-pulse" />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-white">Xác Nhận Xóa Đơn Hàng</h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                Bạn có chắc chắn muốn xóa vĩnh viễn đơn hàng <strong className="text-indigo-400">{orderToDelete?.orderIdText}</strong> này khỏi hệ thống không?
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-semibold transition cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteDelete}
-                className="flex-1 px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold shadow-lg transition cursor-pointer"
-              >
-                Đồng ý Xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Thanh phân trang */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-slate-950/60 border-t border-slate-800">
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <span>Hiển thị mỗi trang:</span>
+      <div className="bg-slate-950 px-6 py-4 flex flex-col sm:flex-row items-center justify-between border-t border-slate-800 gap-4">
+        <div className="flex items-center space-x-3 text-xs text-slate-300">
+          <span>Hiển thị:</span>
           <select
             value={limit}
             onChange={(e) => onLimitChange(Number(e.target.value))}
-            className="bg-slate-900 border border-slate-700 text-white rounded-xl px-2.5 py-1 text-xs focus:outline-none"
+            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
+            <option value={10}>10 dòng/trang</option>
+            <option value={20}>20 dòng/trang</option>
+            <option value={50}>50 dòng/trang</option>
           </select>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center space-x-3">
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl text-xs transition shadow-md cursor-pointer disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none active:scale-95"
           >
-            ⬅️ Trang Trước
+            <ChevronLeft className="w-4 h-4" />
+            <span>Trang Trước</span>
           </button>
-          
-          <span className="text-xs font-semibold text-white font-mono px-3 py-1 bg-slate-900 border border-slate-700 rounded-xl">
-            Trang {currentPage} / {totalPages || 1}
+
+          <span className="text-xs text-slate-200 font-medium px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg">
+            Trang <strong className="text-indigo-400 font-mono text-sm">{currentPage}</strong> / {totalPages || 1}
           </span>
 
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl text-xs transition shadow-md cursor-pointer disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none active:scale-95"
           >
-            Trang Sau ➡️
+            <span>Trang Sau</span>
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
