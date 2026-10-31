@@ -54,6 +54,13 @@ export default function OrdersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // 1. TỰ ĐỘNG DỌN DẸP TOAST KHI RỜI TRANG ORDERS 
+  useEffect(() => {
+    return () => {
+      toast.dismiss();
+    };
+  }, []);
+
   const getCurrentDateTime = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -167,7 +174,6 @@ export default function OrdersPage() {
     }
   };
 
-  
   useEffect(() => {
     if (!isReady) return;
     fetchOrders();
@@ -180,7 +186,6 @@ export default function OrdersPage() {
       };
       sessionStorage.setItem('tiktokshop_orders_filters', JSON.stringify(filterState));
 
-      // Lưu chuỗi URL Query String riêng cho Navbar và Nút Xem Báo Cáo
       const filterQueryParams = buildFilterQueryParams().toString();
       sessionStorage.setItem('tiktokshop_orders_filter_query', filterQueryParams);
     } catch (err) {
@@ -210,6 +215,7 @@ export default function OrdersPage() {
   };
 
   const handleGoToReports = () => {
+    toast.dismiss(); // Clear toast trước khi chuyển sang /reports
     const filterQueryString = buildFilterQueryParams().toString();
     if (filterQueryString) {
       router.push(`/reports?${filterQueryString}`);
@@ -230,6 +236,7 @@ export default function OrdersPage() {
   if (minAmount || maxAmount) activeFilters.push({ label: `Giá: ${minAmount || '0'}đ - ${maxAmount || '∞'}đ`, clear: () => { setMinAmount(''); setMaxAmount(''); } });
   if (startDate || endDate) activeFilters.push({ label: `Ngày: ${startDate || 'Đầu'} đến ${endDate || 'Hiện tại'}`, clear: () => { setStartDate(''); setEndDate(''); } });
 
+  // 2. BỔ SUNG XỬ LÝ TOAST KHI XÓA ĐƠN HÀNG THÀNH CÔNG
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
@@ -241,6 +248,7 @@ export default function OrdersPage() {
       }
     } catch (err) {
       console.error(err);
+      toast.error('Lỗi kết nối khi xóa đơn hàng.');
     }
   };
 
@@ -324,7 +332,23 @@ export default function OrdersPage() {
   return (
     <Protection allowedRoles={['ADMIN', 'STAFF', 'VIEWER']}>
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased py-10 px-4 sm:px-6">
-        <Toaster position="top-right" />
+        
+        {/* 3. CẤU HÌNH TOASTER ĐỒNG NHẤT DARK MODE VÀ Z-INDEX */}
+        <Toaster
+          position="top-right"
+          containerStyle={{ zIndex: 99999 }}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "#1e293b",
+              color: "#f8fafc",
+              border: "1px solid #334155",
+              borderRadius: "12px",
+              fontSize: "14px",
+            },
+          }}
+        />
+
         <div className="max-w-7xl mx-auto space-y-8">
           
           {/* HEADER */}

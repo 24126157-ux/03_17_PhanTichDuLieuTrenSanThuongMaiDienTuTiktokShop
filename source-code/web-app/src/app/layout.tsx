@@ -1,7 +1,5 @@
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -30,26 +28,13 @@ export default function RootLayout({
   return (
     <html
       lang="vi"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-slate-900 text-slate-50 font-sans">
         <AuthProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
-
-          {/* Hệ thống thông báo toàn ứng dụng */}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: "#1e293b",
-                color: "#f8fafc",
-                border: "1px solid #334155",
-                borderRadius: "12px",
-              },
-            }}
-          />
         </AuthProvider>
       </body>
     </html>
