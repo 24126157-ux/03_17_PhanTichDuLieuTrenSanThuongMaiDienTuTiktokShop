@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -13,7 +12,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import Protection from "@/components/Protection";
 
 export default function BackupRestorePage() {
@@ -25,6 +24,7 @@ export default function BackupRestorePage() {
   // SAO LƯU DỮ LIỆU
   async function handleBackup() {
     setLoadingBackup(true);
+    const toastId = toast.loading("Đang khởi tạo file sao lưu JSON...");
 
     try {
       const response = await fetch("/api/backup");
@@ -49,10 +49,11 @@ export default function BackupRestorePage() {
 
       URL.revokeObjectURL(url);
 
-      toast.success("Đã tải file backup JSON thành công.");
+      toast.success("Đã tải file backup JSON thành công.", { id: toastId });
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Lỗi sao lưu dữ liệu."
+        err instanceof Error ? err.message : "Lỗi sao lưu dữ liệu.",
+        { id: toastId }
       );
     } finally {
       setLoadingBackup(false);
@@ -69,7 +70,7 @@ export default function BackupRestorePage() {
     setShowConfirm(true);
   }
 
-  // THỰC HIỆN PHỤC HỒI
+  // THỰC HIỆN PHỤC HỒI (ĐÃ TỐI ƯU HIỂN THỊ TOAST TỨC THỜI & ĐÓNG MODAL NGAY)
   async function confirmRestore() {
     if (!file) {
       toast.error("Vui lòng chọn file JSON trước.");
@@ -77,8 +78,12 @@ export default function BackupRestorePage() {
       return;
     }
 
+    // Đóng Modal xác nhận ngay lập tức để giải phóng giao diện
     setShowConfirm(false);
     setLoadingRestore(true);
+
+    // Kích hoạt thông báo Loading tức thì
+    const toastId = toast.loading("Đang tải dữ liệu và phục hồi vào MongoDB Atlas...");
 
     try {
       const formData = new FormData();
@@ -95,9 +100,10 @@ export default function BackupRestorePage() {
         throw new Error(data.message || "Không thể phục hồi dữ liệu.");
       }
 
+      // Cập nhật thông báo Toast Loading thành Thành công tức thì
       toast.success(
         `Phục hồi hoàn tất! Đã nhận ${data.received} bản ghi, thêm ${data.inserted}, cập nhật ${data.updated}.`,
-        { duration: 5000 }
+        { id: toastId, duration: 5000 }
       );
 
       setFile(null);
@@ -108,8 +114,10 @@ export default function BackupRestorePage() {
 
       if (input) input.value = "";
     } catch (err) {
+      // Nếu có lỗi, cập nhật Toast Loading thành Báo lỗi tức thì
       toast.error(
-        err instanceof Error ? err.message : "Lỗi phục hồi dữ liệu."
+        err instanceof Error ? err.message : "Lỗi phục hồi dữ liệu.",
+        { id: toastId, duration: 5000 }
       );
     } finally {
       setLoadingRestore(false);
@@ -118,7 +126,7 @@ export default function BackupRestorePage() {
 
   return (
     <Protection allowedRoles={["ADMIN"]}>
-      <main className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased py-10 px-4 sm:px-6">
+      <main className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased py-10 px-4 sm:px-6 relative">
         <div className="max-w-7xl mx-auto space-y-8">
 
           {/* TIÊU ĐỀ TRANG */}
@@ -148,6 +156,7 @@ export default function BackupRestorePage() {
 
             <Link
               href="/orders"
+              onClick={() => toast.dismiss()}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-200 transition"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -377,6 +386,22 @@ export default function BackupRestorePage() {
             </div>
           </div>
         )}
+
+        {/* CẤU HÌNH TOASTER */}
+        <Toaster
+          position="top-right"
+          containerStyle={{ zIndex: 99999 }}
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: "#1e293b",
+              color: "#f8fafc",
+              border: "1px solid #334155",
+              borderRadius: "12px",
+              fontSize: "14px",
+            },
+          }}
+        />
       </main>
     </Protection>
   );
